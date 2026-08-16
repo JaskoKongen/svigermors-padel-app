@@ -1,0 +1,551 @@
+const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let currentUser = localStorage.getItem('padel_name');
+let currentTournamentId = null;
+let currentTournament = null;
+let realtimeChannel = null;
+
+// PWA Service Worker Registration & Auto-Update
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').then(reg => {
+        reg.addEventListener('updatefound', () => {
+            const newWorker = reg.installing;
+            newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    window.location.reload();
+                }
+            });
+        });
+    }).catch(err => console.error("SW registration error:", err));
+
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing) {
+            refreshing = true;
+            window.location.reload();
+        }
+    });
+}
+
+// --------------------------------------------------------------------------
+// THEME MANAGEMENT (LIGHT & DARK MODE)
+// --------------------------------------------------------------------------
+function initTheme() {
+    const savedTheme = localStorage.getItem('padel_theme');
+    if (savedTheme) {
+        setTheme(savedTheme, false);
+    } else {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        setTheme(prefersDark ? 'dark' : 'light', false);
+    }
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+        if (!localStorage.getItem('padel_theme')) {
+            setTheme(e.matches ? 'dark' : 'light', false);
+        }
+    });
+}
+
+function toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+    const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme, true);
+}
+
+function setTheme(theme, save = true) {
+    document.documentElement.setAttribute('data-theme', theme);
+    const btn = document.getElementById('theme-toggle-btn');
+    if (btn) {
+        btn.innerText = theme === 'dark' ? '☀️' : '🌙';
+        btn.title = theme === 'dark' ? 'Skift til lyst tema' : 'Skift til mørkt tema';
+    }
+    if (save) {
+        localStorage.setItem('padel_theme', theme);
+    }
+}
+
+// PWA Installation & Device Detection
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    checkPwaBanner();
+});
+
+function checkPwaBanner() {
+    const isStandalone = window.navigator.standalone || 
+                         window.matchMedia('(display-mode: standalone)').matches ||
+                         window.matchMedia('(display-mode: minimal-ui)').matches;
+
+    const banner = document.getElementById('pwa-install-banner');
+    if (!banner) return;
+
+    // SKJUL BANNER HELT NÅR APPEN KØRER SOM PWA / STANDALONE!
+    if (isStandalone) {
+        banner.style.display = 'none';
+        return;
+    }
+
+    const ua = navigator.userAgent;
+    const isIos = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+    const isAndroid = /Android/.test(ua);
+
+    const bannerTitle = document.getElementById('pwa-banner-title');
+    const bannerBtn = document.getElementById('pwa-banner-btn');
+
+    if (isIos) {
+        if (bannerTitle) bannerTitle.innerText = "Installér appen på din iPhone";
+        if (bannerBtn) bannerBtn.innerText = "Vejledning 📱";
+        banner.style.display = 'flex';
+    } else if (isAndroid || deferredPrompt) {
+        if (bannerTitle) bannerTitle.innerText = "Installér appen på din mobil";
+        if (bannerBtn) bannerBtn.innerText = "Installér / Vejledning 📱";
+        banner.style.display = 'flex';
+    } else {
+        if (bannerTitle) bannerTitle.innerText = "Gem Padel-Cup som app";
+        if (bannerBtn) bannerBtn.innerText = "Vejledning 💻";
+        banner.style.display = 'flex';
+    }
+}
+
+function openPwaInstallModal() {
+    if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === 'accepted') {
+                const banner = document.getElementById('pwa-install-banner');
+                if (banner) banner.style.display = 'none';
+            }
+            deferredPrompt = null;
+        });
+        return;
+    }
+
+    const ua = navigator.userAgent;
+    const isIos = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+    const isAndroid = /Android/.test(ua);
+
+    const modalTitle = document.getElementById('pwa-modal-title');
+    const modalSteps = document.getElementById('pwa-modal-steps');
+
+    if (isIos) {
+        if (modalTitle) modalTitle.innerText = "Installér på iPhone / iPad 📱";
+        if (modalSteps) {
+            modalSteps.innerHTML = `
+                <div class="ios-step">
+                    <div class="ios-step-num">1</div>
+                    <div style="font-size: 13px;">Tryk på <strong>Del-knappen</strong> (firkant med pil op ⎕↑) i Safari-menuen i bunden.</div>
+                </div>
+                <div class="ios-step">
+                    <div class="ios-step-num">2</div>
+                    <div style="font-size: 13px;">Rul ned og tryk på <strong>"Tilføj til hjemmeskærm"</strong> (➕).</div>
+                </div>
+                <div class="ios-step">
+                    <div class="ios-step-num">3</div>
+                    <div style="font-size: 13px;">Tryk på <strong>"Tilføj"</strong> i øverste højre hjørne. 🎉</div>
+                </div>`;
+        }
+    } else if (isAndroid) {
+        if (modalTitle) modalTitle.innerText = "Installér på Android 📱";
+        if (modalSteps) {
+            modalSteps.innerHTML = `
+                <div class="ios-step">
+                    <div class="ios-step-num">1</div>
+                    <div style="font-size: 13px;">Tryk på <strong>menu-knappen (⋮)</strong> i øverste højre hjørne af Chrome.</div>
+                </div>
+                <div class="ios-step">
+                    <div class="ios-step-num">2</div>
+                    <div style="font-size: 13px;">Vælg <strong>"Tilføj til startskærm"</strong> eller <strong>"Installér app"</strong> (📲).</div>
+                </div>
+                <div class="ios-step">
+                    <div class="ios-step-num">3</div>
+                    <div style="font-size: 13px;">Tryk <strong>"Installér"</strong> for at tilføje appen til din telefon. 🎉</div>
+                </div>`;
+        }
+    } else {
+        if (modalTitle) modalTitle.innerText = "Installér på Computer 💻";
+        if (modalSteps) {
+            modalSteps.innerHTML = `
+                <div class="ios-step">
+                    <div class="ios-step-num">1</div>
+                    <div style="font-size: 13px;">Kig i browserens adresselinje øverst til højre.</div>
+                </div>
+                <div class="ios-step">
+                    <div class="ios-step-num">2</div>
+                    <div style="font-size: 13px;">Tryk på <strong>Installér-ikonet (⊕)</strong> eller menuen (⋮) > <strong>"Installér Padel-Cup"</strong>.</div>
+                </div>
+                <div class="ios-step">
+                    <div class="ios-step-num">3</div>
+                    <div style="font-size: 13px;">Bekræft installationen. 🎉</div>
+                </div>`;
+        }
+    }
+
+    document.getElementById('ios-install-modal').style.display = 'flex';
+}
+
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) modal.style.display = 'none';
+}
+
+// App Initialization
+function init() {
+    initTheme();
+    checkPwaBanner();
+
+    if (!currentUser) {
+        showView('login-view');
+        document.getElementById('header-user-badge').style.display = 'none';
+        document.getElementById('app-nav').style.display = 'none';
+    } else {
+        document.getElementById('user-display-name').innerText = currentUser;
+        document.getElementById('header-user-badge').style.display = 'flex';
+        goToMyTournaments();
+    }
+}
+
+let pendingLoginName = null;
+
+async function login() {
+    const nameInput = document.getElementById('username-input');
+    const errDiv = document.getElementById('login-error');
+    const existingWarning = document.getElementById('login-existing-warning');
+    
+    errDiv.style.display = 'none';
+    if (existingWarning) existingWarning.style.display = 'none';
+    
+    const name = nameInput.value.trim();
+    if (name.length < 2) {
+        errDiv.innerText = "Brugernavnet skal være på mindst 2 tegn.";
+        errDiv.style.display = 'block';
+        return;
+    }
+
+    // Tjek om brugernavnet findes i databasen
+    const { data: existingUser } = await client
+        .from('users')
+        .select('*')
+        .ilike('username', name)
+        .maybeSingle();
+
+    if (existingUser) {
+        // Hvis brugeren findes, viser vi en venlig besked med mulighed for at fortsætte eller skifte navn
+        pendingLoginName = existingUser.username;
+        document.getElementById('existing-name-span').innerText = existingUser.username;
+        document.getElementById('confirm-name-span').innerText = existingUser.username;
+        document.getElementById('suggested-name-span').innerText = existingUser.username + " S";
+        if (existingWarning) existingWarning.style.display = 'block';
+    } else {
+        // Opret helt ny bruger i databasen og log ind
+        await client.from('users').insert({ username: name });
+        completeLogin(name);
+    }
+}
+
+function confirmLoginExisting() {
+    if (pendingLoginName) {
+        completeLogin(pendingLoginName);
+    }
+}
+
+function cancelLoginExisting() {
+    pendingLoginName = null;
+    const warning = document.getElementById('login-existing-warning');
+    if (warning) warning.style.display = 'none';
+    const input = document.getElementById('username-input');
+    if (input) {
+        input.focus();
+        input.select();
+    }
+}
+
+function completeLogin(name) {
+    localStorage.setItem('padel_name', name);
+    currentUser = name;
+    pendingLoginName = null;
+    const warning = document.getElementById('login-existing-warning');
+    if (warning) warning.style.display = 'none';
+    init();
+}
+
+function logout() {
+    if (!confirm("Vil du skifte brugernavn eller logge ud?")) return;
+    localStorage.removeItem('padel_name');
+    currentUser = null;
+    currentTournamentId = null;
+    init();
+}
+
+function showView(viewId) {
+    ['login-view', 'my-tournaments-view', 'tournament-view'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = (id === viewId) ? 'block' : 'none';
+    });
+    const nav = document.getElementById('app-nav');
+    if (nav) nav.style.display = (viewId === 'tournament-view') ? 'flex' : 'none';
+}
+
+function switchTab(tab) {
+    const isMatches = tab === 'matches';
+    const isLeaderboard = tab === 'leaderboard';
+    const isRegistration = tab === 'registration';
+
+    document.getElementById('matches-section').style.display = isMatches ? 'block' : 'none';
+    document.getElementById('leaderboard-section').style.display = isLeaderboard ? 'block' : 'none';
+    document.getElementById('registration-section').style.display = isRegistration ? 'block' : 'none';
+
+    document.getElementById('nav-matches').classList.toggle('active', isMatches);
+    document.getElementById('nav-leaderboard').classList.toggle('active', isLeaderboard);
+    document.getElementById('nav-teams').classList.toggle('active', isRegistration);
+}
+
+// --------------------------------------------------------------------------
+// MY TOURNAMENTS LOGIC
+// --------------------------------------------------------------------------
+async function goToMyTournaments() {
+    currentTournamentId = null;
+    currentTournament = null;
+    if (realtimeChannel) {
+        client.removeChannel(realtimeChannel);
+        realtimeChannel = null;
+    }
+    showView('my-tournaments-view');
+    await fetchMyTournaments();
+}
+
+async function fetchMyTournaments() {
+    const listDiv = document.getElementById('my-tournaments-list');
+    listDiv.innerHTML = '<p style="color: var(--text-muted); text-align: center;">Henter turneringer...</p>';
+
+    const { data: myTeams } = await client
+        .from('teams')
+        .select('tournament_id')
+        .or(`player1.ilike.${currentUser},player2.ilike.${currentUser}`);
+
+    const myTournamentIds = myTeams ? [...new Set(myTeams.map(t => t.tournament_id))] : [];
+
+    const { data: tournaments, error } = await client
+        .from('tournaments')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error(error);
+        listDiv.innerHTML = '<p style="color: var(--accent-red); text-align: center;">Kunne ikke hente turneringer. Tjek Supabase forbindelsen.</p>';
+        return;
+    }
+
+    if (!tournaments || tournaments.length === 0) {
+        listDiv.innerHTML = `
+            <div class="card" style="text-align: center; padding: 30px 20px;">
+                <p style="font-size: 18px; margin-bottom: 8px;">Ingen turneringer endnu 🎾</p>
+                <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px;">Opret en ny turnering eller deltag i en eksisterende!</p>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn-primary" onclick="openCreateTournamentModal()">➕ Opret Turnering</button>
+                    <button class="btn-secondary" onclick="openJoinTournamentModal()">🔍 Deltag</button>
+                </div>
+            </div>`;
+        return;
+    }
+
+    listDiv.innerHTML = '';
+    tournaments.forEach(t => {
+        const isAdmin = t.admin_username.toLowerCase() === currentUser.toLowerCase();
+        const isParticipant = myTournamentIds.includes(t.id);
+        const formatBadgeClass = t.format === 'single' ? 'badge-single' : 'badge-double';
+        const formatText = t.format === 'single' ? 'Single' : 'Double';
+
+        let statusText = "Tilmeldingsfase";
+        if (t.status === 'matches') statusText = "I gang 🎾";
+        if (t.status === 'finished') statusText = "Afsluttet 🏆";
+
+        const card = document.createElement('div');
+        card.className = 'card card-interactive';
+        card.onclick = () => openTournament(t.id);
+
+        card.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+                <div style="flex:1; min-width:0;">
+                    <h3 style="margin:0 0 6px 0; font-size:16px; color:var(--text-main); text-transform:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${t.name}</h3>
+                    <div style="display:flex; gap:4px; flex-wrap:wrap; align-items:center;">
+                        <span class="badge ${formatBadgeClass}">${formatText}</span>
+                        <span class="badge badge-status">${statusText}</span>
+                        ${isAdmin ? '<span class="badge badge-admin">Admin</span>' : (isParticipant ? '<span class="badge badge-single">Deltager</span>' : '')}
+                    </div>
+                </div>
+                <div style="font-size: 18px; color: var(--text-muted); flex-shrink:0; align-self:center;">→</div>
+            </div>
+            <div style="margin-top:12px; padding-top:8px; border-top:1px solid var(--border-card); font-size:12px; color:var(--text-muted); display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">Admin: ${t.admin_username} | ${t.max_teams} hold</span>
+                ${isAdmin ? `<button class="btn-danger btn-sm" style="padding:4px 10px; font-size:11px;" onclick="event.stopPropagation(); deleteTournament('${t.id}')">🗑️ Slet</button>` : ''}
+            </div>`;
+        listDiv.appendChild(card);
+    });
+}
+
+// Open Tournament View
+async function openTournament(tournamentId) {
+    currentTournamentId = tournamentId;
+    const { data: t } = await client.from('tournaments').select('*').eq('id', tournamentId).single();
+    if (!t) return alert("Kunne ikke hente turnering.");
+
+    currentTournament = t;
+    showView('tournament-view');
+
+    const isAdmin = t.admin_username === currentUser;
+
+    document.getElementById('t-detail-name').innerText = t.name;
+    document.getElementById('t-detail-format-badge').innerText = t.format.toUpperCase();
+    document.getElementById('t-detail-format-badge').className = 'badge ' + (t.format === 'single' ? 'badge-single' : 'badge-double');
+    
+    let statusText = t.status === 'registration' ? 'Tilmeldingsfase' : (t.status === 'matches' ? 'Kampprogram i gang 🎾' : 'Afsluttet 🏆');
+    document.getElementById('t-detail-status-badge').innerText = statusText;
+
+    document.getElementById('t-detail-admin').innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <div>
+                👤 <strong>Admin:</strong> ${t.admin_username} &nbsp;|&nbsp; 📞 <strong>Kontakt:</strong> ${t.admin_contact}
+            </div>
+            ${isAdmin ? `<button class="btn-danger btn-sm" onclick="deleteTournament('${t.id}')">🗑️ Slet Turnering</button>` : ''}
+        </div>
+    `;
+
+    setupTournamentRealtime(tournamentId);
+
+    if (t.status === 'registration') {
+        switchTab('registration');
+    } else {
+        switchTab('matches');
+    }
+
+    fetchTeams();
+    fetchMatches();
+}
+
+async function deleteTournament(tournamentId) {
+    if (!confirm("ADVARSEL: Er du helt sikker på, at du vil slette denne turnering? Alle tilmeldinger, kampe og stillinger vil blive permanent slettet!")) return;
+
+    const { error } = await client.from('tournaments').delete().eq('id', tournamentId);
+    if (error) {
+        alert("Kunne ikke slette turnering: " + error.message);
+        return;
+    }
+
+    alert("Turneringen er nu slettet.");
+    goToMyTournaments();
+}
+
+function setupTournamentRealtime(tId) {
+    if (realtimeChannel) client.removeChannel(realtimeChannel);
+
+    realtimeChannel = client.channel('tournament-' + tId)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'teams', filter: `tournament_id=eq.${tId}` }, () => fetchTeams())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'matches', filter: `tournament_id=eq.${tId}` }, () => fetchMatches())
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tournaments', filter: `id=eq.${tId}` }, async (payload) => {
+            currentTournament = payload.new;
+            openTournament(tId);
+        })
+        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tournaments', filter: `id=eq.${tId}` }, () => {
+            alert("Turneringen er blevet slettet af admin.");
+            goToMyTournaments();
+        })
+        .subscribe();
+}
+
+// Modal Handlers
+function openCreateTournamentModal() {
+    document.getElementById('create-t-name').value = '';
+    document.getElementById('create-t-contact').value = '';
+    document.getElementById('create-tournament-modal').style.display = 'flex';
+}
+
+async function submitCreateTournament() {
+    const name = document.getElementById('create-t-name').value.trim();
+    const contact = document.getElementById('create-t-contact').value.trim();
+    const format = document.getElementById('create-t-format').value;
+    const maxTeams = parseInt(document.getElementById('create-t-max-teams').value);
+
+    if (!name || !contact) {
+        return alert("Udfyld venligst både turneringsnavn og kontakt-info.");
+    }
+
+    const { data: newT, error } = await client.from('tournaments').insert({
+        name: name,
+        admin_username: currentUser,
+        admin_contact: contact,
+        format: format,
+        max_teams: maxTeams,
+        status: 'registration'
+    }).select().single();
+
+    if (error) {
+        alert("Fejl ved oprettelse af turnering: " + error.message);
+        return;
+    }
+
+    const teamsToInsert = [];
+    for (let i = 1; i <= maxTeams; i++) {
+        teamsToInsert.push({
+            tournament_id: newT.id,
+            team_number: i,
+            player1: null,
+            player2: null
+        });
+    }
+
+    await client.from('teams').insert(teamsToInsert);
+
+    closeModal('create-tournament-modal');
+    openTournament(newT.id);
+}
+
+async function openJoinTournamentModal() {
+    document.getElementById('join-tournament-modal').style.display = 'flex';
+    const listDiv = document.getElementById('open-tournaments-list');
+    listDiv.innerHTML = '<p style="color:var(--text-muted); text-align:center;">Henter åbne turneringer...</p>';
+
+    const { data: openTs } = await client
+        .from('tournaments')
+        .select('*')
+        .eq('status', 'registration')
+        .order('created_at', { ascending: false });
+
+    if (!openTs || openTs.length === 0) {
+        listDiv.innerHTML = '<p style="color:var(--text-muted); text-align:center;">Der er i øjeblikket ingen åbne turneringer med ledige pladser.</p>';
+        return;
+    }
+
+    listDiv.innerHTML = '';
+    for (const t of openTs) {
+        const { data: teams } = await client.from('teams').select('*').eq('tournament_id', t.id);
+        let filledPlayers = 0;
+        let totalCapacity = t.format === 'single' ? t.max_teams : t.max_teams * 2;
+        teams.forEach(tm => {
+            if (tm.player1) filledPlayers++;
+            if (tm.player2) filledPlayers++;
+        });
+
+        const card = document.createElement('div');
+        card.className = 'team-card';
+        card.style.flexDirection = 'column';
+        card.style.alignItems = 'stretch';
+        card.style.gap = '10px';
+
+        card.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <strong>${t.name}</strong>
+                <span class="badge ${t.format === 'single' ? 'badge-single' : 'badge-double'}">${t.format.toUpperCase()} (${t.max_teams} Hold)</span>
+            </div>
+            <div style="font-size:13px; color:var(--text-muted);">
+                👤 Admin: ${t.admin_username} (📞 ${t.admin_contact})<br>
+                📊 Pladser: ${filledPlayers} / ${totalCapacity} spillere
+            </div>
+            <button class="btn-primary btn-sm" onclick="closeModal('join-tournament-modal'); openTournament('${t.id}')">Se / Deltag →</button>
+        `;
+        listDiv.appendChild(card);
+    }
+}
+
+// Initial start
+init();

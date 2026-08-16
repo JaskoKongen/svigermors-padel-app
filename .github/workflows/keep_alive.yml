@@ -1,0 +1,17 @@
+name: Keep Supabase Alive
+
+on:
+  schedule:
+    # Kører automatisk hver 3. dag kl. 00:00 UTC for at forhindre at Supabase pauser
+    - cron: '0 0 */3 * *'
+  workflow_dispatch:
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Ping query to Supabase REST API
+        run: |
+          curl -s -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inptc2JqamJjbnVsY2J2ZGx2aHNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMzU0NTYsImV4cCI6MjA4NzYxMTQ1Nn0.q5ickxXgPk3Qeo5bc_6qBzmk8c5oj2WUkG3jdW_rQXY" \
+            "https://zmsbjjbcnulcbvdlvhsq.supabase.co/rest/v1/tournaments?select=id&limit=1"
+          echo "✅ Supabase blev pinget succesfuldt og forbliver aktiv!"

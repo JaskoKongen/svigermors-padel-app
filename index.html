@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Padel-Cup 🎾</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Padel-Cup">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <!-- Top Bar -->
+    <header class="top-header">
+        <div class="app-title" onclick="goToMyTournaments()">🎾 Padel-Cup</div>
+        <div class="header-actions">
+            <button id="theme-toggle-btn" class="theme-toggle-btn" onclick="toggleTheme()" title="Skift tema">🌙</button>
+            <div id="header-user-badge" class="user-badge" style="display:none;">
+                <span id="user-display-name"></span>
+                <button onclick="logout()" title="Skift bruger">✕</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="app-container">
+
+        <!-- 1. LOGIN / USER SETUP VIEW -->
+        <div id="login-view" class="card" style="display:none;">
+            <h2 style="text-align: center; margin-bottom: 8px; font-size: 20px;">Velkommen til Padel-Cup 🎾</h2>
+            <p style="text-align: center; color: var(--text-muted); font-size: 13px; margin-bottom: 20px;">
+                Indtast dit brugernavn for at starte eller se dine turneringer.
+            </p>
+            <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">DIT BRUGERNAVN</label>
+            <input type="text" id="username-input" placeholder="Fx Mikkel, Sarah...">
+            <div id="login-error" style="color: var(--accent-red); font-size: 13px; margin-bottom: 12px; display: none;"></div>
+
+            <!-- Advarsel hvis brugeren findes i forvejen -->
+            <div id="login-existing-warning" style="display:none; background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: var(--radius-md); padding: 14px; margin-bottom: 14px; text-align: left;">
+                <div style="font-weight: 800; color: var(--accent-blue); font-size: 14px; margin-bottom: 4px;">👋 Velkommen tilbage!</div>
+                <div style="font-size: 12px; color: var(--text-main); margin-bottom: 6px; line-height: 1.4;">
+                    Brugernavnet "<strong id="existing-name-span"></strong>" findes i systemet. Du er ved at logge ind på den eksisterende konto.
+                </div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.4;">
+                    <em>Er du en ny person med samme navn? Så anbefaler vi at vælge et unikt navn (fx <span id="suggested-name-span"></span>).</em>
+                </div>
+                <div style="display:flex; gap: 6px;">
+                    <button class="btn-primary btn-sm" onclick="confirmLoginExisting()" style="flex:1;">Fortsæt som <span id="confirm-name-span"></span></button>
+                    <button class="btn-secondary btn-sm" onclick="cancelLoginExisting()" style="width: auto;">Ændr navn</button>
+                </div>
+            </div>
+
+            <button class="btn-primary" onclick="login()">Kom i gang 🚀</button>
+        </div>
+
+        <!-- PWA Install Banner -->
+        <div id="pwa-install-banner" class="pwa-banner" style="display:none;">
+            <div style="flex:1; min-width:0;">
+                <strong id="pwa-banner-title" style="font-size: 13px; display:block;">Installér appen på din mobil</strong>
+                <div style="font-size: 11px; color: var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Få adgang direkte fra hjemmeskærmen</div>
+            </div>
+            <button id="pwa-banner-btn" class="btn-secondary btn-sm" onclick="openPwaInstallModal()" style="white-space:nowrap; flex-shrink:0;">Vejledning 📱</button>
+        </div>
+
+        <!-- 2. MY TOURNAMENTS VIEW (DINE TURNERINGER) -->
+        <div id="my-tournaments-view" style="display:none;">
+            <div class="action-buttons-row" style="display: flex; gap: 8px; margin-bottom: 16px;">
+                <button class="btn-primary" onclick="openCreateTournamentModal()" style="flex: 1; padding: 12px 8px; font-size: 13px;">➕ Opret Turnering</button>
+                <button class="btn-secondary" onclick="openJoinTournamentModal()" style="flex: 1; padding: 12px 8px; font-size: 13px;">🔍 Deltag i Turnering</button>
+            </div>
+
+            <h3 style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 10px;">Dine Turneringer</h3>
+            <div id="my-tournaments-list">
+                <!-- Dynamisk liste over turneringer man er med i -->
+            </div>
+        </div>
+
+        <!-- 3. TOURNAMENT DETAIL VIEW -->
+        <div id="tournament-view" style="display:none;">
+            <!-- Header for den valgte turnering -->
+            <div id="tournament-header-card" class="card" style="margin-bottom: 14px; padding: 16px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap: 10px; margin-bottom: 8px;">
+                    <h2 id="t-detail-name" style="margin: 0; font-size: 20px; font-weight: 800; line-height: 1.2; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0;"></h2>
+                    <button class="btn-secondary btn-sm" onclick="goToMyTournaments()" style="white-space:nowrap; flex-shrink:0;">← Skift turnering</button>
+                </div>
+                <div style="display:flex; gap: 6px; align-items:center; flex-wrap: wrap; margin-bottom: 10px;">
+                    <span id="t-detail-format-badge" class="badge"></span>
+                    <span id="t-detail-status-badge" class="badge badge-status"></span>
+                </div>
+                <div id="t-detail-admin" style="font-size: 12px; color: var(--text-muted); border-top: 1px solid var(--border-card); padding-top: 10px;">
+                    <!-- Admin & kontaktinfo -->
+                </div>
+            </div>
+
+            <!-- Tilmelding / Hold-oversigt sektion -->
+            <div id="registration-section" style="display:none;">
+                <div id="admin-controls-section" style="margin-bottom: 14px;"></div>
+                <h3 style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 10px;">Hold & Deltagere</h3>
+                <div id="teams-list"></div>
+            </div>
+
+            <!-- Kampprogram sektion -->
+            <div id="matches-section" style="display:none;">
+                <div id="tournament-admin-finished" style="margin-bottom: 14px;"></div>
+                <div id="matches-list"></div>
+            </div>
+
+            <!-- Stilling sektion -->
+            <div id="leaderboard-section" style="display:none;">
+                <div class="card">
+                    <h3 style="margin-top:0; font-size: 15px; color: var(--text-main);">STILLING</h3>
+                    <table class="leaderboard-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>HOLD</th>
+                                <th style="text-align:right;">VUNDNE KAMPE</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboard-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Navigation Bar i bunden (når man er inde i en turnering) -->
+    <div id="app-nav" class="bottom-nav" style="display:none;">
+        <div class="nav-item" id="nav-my-tournaments" onclick="goToMyTournaments()">
+            <span class="icon">🏠</span>
+            <span>TURNERINGER</span>
+        </div>
+        <div class="nav-item active" id="nav-matches" onclick="switchTab('matches')">
+            <span class="icon">🎾</span>
+            <span>KAMPE</span>
+        </div>
+        <div class="nav-item" id="nav-leaderboard" onclick="switchTab('leaderboard')">
+            <span class="icon">🏆</span>
+            <span>STILLING</span>
+        </div>
+        <div class="nav-item" id="nav-teams" onclick="switchTab('registration')">
+            <span class="icon">👥</span>
+            <span>HOLD</span>
+        </div>
+    </div>
+
+    <!-- MODAL: OPRET TURNERING -->
+    <div id="create-tournament-modal" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-top:0; font-size: 18px;">Opret Ny Turnering 🏆</h3>
+            
+            <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">TURNERINGSNAVN</label>
+            <input type="text" id="create-t-name" placeholder="Fx Fredags-Padel, Svigermors Cup...">
+
+            <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">ADMIN KONTAKT-INFO</label>
+            <input type="text" id="create-t-contact" placeholder="Fx Tlf 12345678 eller Email...">
+
+            <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">FORMAT</label>
+            <select id="create-t-format">
+                <option value="double">Double (2 spillere pr. hold)</option>
+                <option value="single">Single (1 spiller pr. hold)</option>
+            </select>
+
+            <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">ANTAL HOLD / DELTAGERE</label>
+            <select id="create-t-max-teams">
+                <option value="4">4 Hold (2 runder: Semi + Finale)</option>
+                <option value="8" selected>8 Hold (3 runder: Indledende + Semi + Finale)</option>
+                <option value="16">16 Hold (4 runder: R1 + Kvart + Semi + Finale)</option>
+            </select>
+
+            <button class="btn-primary" onclick="submitCreateTournament()" style="margin-top: 8px;">Opret Turnering 🚀</button>
+            <button class="btn-secondary" onclick="closeModal('create-tournament-modal')" style="margin-top: 6px;">Annuller</button>
+        </div>
+    </div>
+
+    <!-- MODAL: DELTAG I TURNERING -->
+    <div id="join-tournament-modal" class="modal">
+        <div class="modal-content" style="max-width: 480px;">
+            <h3 style="margin-top:0; font-size: 18px;">Åbne Turneringer 🔍</h3>
+            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">Vælg en turnering med ledige pladser for at deltage.</p>
+            
+            <div id="open-tournaments-list" style="max-height: 300px; overflow-y: auto; margin-bottom: 14px;">
+                <!-- Liste over åbne turneringer -->
+            </div>
+
+            <button class="btn-secondary" onclick="closeModal('join-tournament-modal')">Luk</button>
+        </div>
+    </div>
+
+    <!-- MODAL: INDTAST RESULTAT -->
+    <div id="score-modal" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-top:0; font-size: 18px;">Indtast Resultat 🎾</h3>
+            <div style="display:flex; justify-content:space-around; align-items:center; margin:20px 0;">
+                <div style="text-align: center;">
+                    <div id="team-a-label" style="font-size: 11px; font-weight: 700; color: var(--accent-green-bright); margin-bottom: 4px;"></div>
+                    <input type="number" id="score-a" style="text-align: center; font-size: 22px; font-weight: bold; width: 66px; height:46px; margin: 0;">
+                </div>
+                <div style="font-weight:900; font-size: 22px; color: var(--text-muted);">-</div>
+                <div style="text-align: center;">
+                    <div id="team-b-label" style="font-size: 11px; font-weight: 700; color: var(--accent-green-bright); margin-bottom: 4px;"></div>
+                    <input type="number" id="score-b" style="text-align: center; font-size: 22px; font-weight: bold; width: 66px; height:46px; margin: 0;">
+                </div>
+            </div>
+            <button class="btn-primary" onclick="saveScore()">Gem Resultat</button>
+            <button class="btn-secondary" onclick="closeModal('score-modal')" style="margin-top: 6px;">Annuller</button>
+        </div>
+    </div>
+
+    <!-- MODAL: PWA INSTALLATION (DYNAMISK FOR ENHED) -->
+    <div id="ios-install-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="pwa-modal-title" style="margin-top:0; font-size: 18px;">Installér appen 📱</h3>
+            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">
+                Følg disse hurtige trin i din browser for at gemme Padel-Cup som en app:
+            </p>
+
+            <div id="pwa-modal-steps">
+                <!-- Dynamisk indhold baseret på enhed (iOS, Android, Desktop) -->
+            </div>
+
+            <button class="btn-primary" onclick="closeModal('ios-install-modal')" style="margin-top: 10px;">Forstået!</button>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+    <script src="registration.js"></script>
+    <script src="tournament.js"></script>
+</body>
+</html>
