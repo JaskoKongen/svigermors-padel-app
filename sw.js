@@ -1,13 +1,17 @@
-const CACHE_NAME = 'padel-cup-v1.0.0';
+const CACHE_NAME = 'svigermors-padel-v1.0.3';
 const ASSETS_TO_CACHE = [
     './',
+    'index.html',
     './index.html',
     './style.css',
     './config.js',
     './app.js',
     './registration.js',
     './tournament.js',
-    './manifest.json'
+    './manifest.json',
+    './icon-192.png',
+    './icon-512.png',
+    './apple-touch-icon.png'
 ];
 
 // Installation: Cache core assets and skip waiting
@@ -37,10 +41,8 @@ self.addEventListener('activate', event => {
 
 // Fetch strategy: Network First (ensures fresh data), fallback to Cache if offline
 self.addEventListener('fetch', event => {
-    // Only handle GET requests for local domain
     if (event.request.method !== 'GET') return;
     
-    // Ignore external APIs (like Supabase CDN or API calls) from caching stale
     const url = new URL(event.request.url);
     if (url.hostname.includes('supabase') || url.hostname.includes('jsdelivr')) {
         return;
@@ -55,6 +57,13 @@ self.addEventListener('fetch', event => {
                 }
                 return networkResponse;
             })
-            .catch(() => caches.match(event.request))
+            .catch(() => {
+                return caches.match(event.request).then(cachedResponse => {
+                    if (cachedResponse) return cachedResponse;
+                    if (event.request.mode === 'navigate') {
+                        return caches.match('./index.html');
+                    }
+                });
+            })
     );
 });

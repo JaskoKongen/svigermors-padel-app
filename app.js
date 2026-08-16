@@ -7,6 +7,9 @@ let realtimeChannel = null;
 // PWA Service Worker Registration & Auto-Update
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').then(reg => {
+        // Tjek for ny version med det samme ved opstart
+        reg.update();
+
         reg.addEventListener('updatefound', () => {
             const newWorker = reg.installing;
             newWorker.addEventListener('statechange', () => {
@@ -23,6 +26,13 @@ if ('serviceWorker' in navigator) {
             refreshing = true;
             window.location.reload();
         }
+    });
+
+    // Tjek for ny version hver gang appen åbnes/fokuseres på telefonen
+    window.addEventListener('focus', () => {
+        navigator.serviceWorker.getRegistration().then(reg => {
+            if (reg) reg.update();
+        });
     });
 }
 
