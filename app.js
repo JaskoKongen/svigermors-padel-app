@@ -355,9 +355,16 @@ async function goToMyTournaments() {
     await fetchMyTournaments();
 }
 
+let showFinishedTournaments = false;
+
+function toggleFinishedTournaments() {
+    showFinishedTournaments = !showFinishedTournaments;
+    fetchMyTournaments();
+}
+
 async function fetchMyTournaments() {
     const listDiv = document.getElementById('my-tournaments-list');
-    listDiv.innerHTML = '<p style="color: var(--text-muted); text-align: center;">Henter turneringer...</p>';
+    if (!listDiv) return;
 
     const { data: myTeams } = await client
         .from('teams')
@@ -390,8 +397,10 @@ async function fetchMyTournaments() {
         return;
     }
 
-    listDiv.innerHTML = '';
-    tournaments.forEach(t => {
+    const activeTournaments = tournaments.filter(t => t.status !== 'finished');
+    const finishedTournaments = tournaments.filter(t => t.status === 'finished');
+
+    const renderCard = (t) => {
         const isAdmin = t.admin_username.toLowerCase() === currentUser.toLowerCase();
         const isParticipant = myTournamentIds.includes(t.id);
         const formatBadgeClass = t.format === 'single' ? 'badge-single' : 'badge-double';
@@ -401,28 +410,51 @@ async function fetchMyTournaments() {
         if (t.status === 'matches') statusText = "I gang 🎾";
         if (t.status === 'finished') statusText = "Afsluttet 🏆";
 
-        const card = document.createElement('div');
-        card.className = 'card card-interactive';
-        card.onclick = () => openTournament(t.id);
-
-        card.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
-                <div style="flex:1; min-width:0;">
-                    <h3 style="margin:0 0 6px 0; font-size:16px; color:var(--text-main); text-transform:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${t.name}</h3>
-                    <div style="display:flex; gap:4px; flex-wrap:wrap; align-items:center;">
-                        <span class="badge ${formatBadgeClass}">${formatText}</span>
-                        <span class="badge badge-status">${statusText}</span>
-                        ${isAdmin ? '<span class="badge badge-admin">Admin</span>' : (isParticipant ? '<span class="badge badge-single">Deltager</span>' : '')}
+        return `
+            <div class="card card-interactive" onclick="openTournament('${t.id}')" style="margin-bottom:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+                    <div style="flex:1; min-width:0;">
+                        <h3 style="margin:0 0 6px 0; font-size:16px; color:var(--text-main); text-transform:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${t.name}</h3>
+                        <div style="display:flex; gap:4px; flex-wrap:wrap; align-items:center;">
+                            <span class="badge ${formatBadgeClass}">${formatText}</span>
+                            <span class="badge badge-status">${statusText}</span>
+                            ${isAdmin ? '<span class="badge badge-admin">Admin</span>' : (isParticipant ? '<span class="badge badge-single">Deltager</span>' : '')}
+                        </div>
                     </div>
+                    <div style="font-size: 18px; color: var(--text-muted); flex-shrink:0; align-self:center;">→</div>
                 </div>
-                <div style="font-size: 18px; color: var(--text-muted); flex-shrink:0; align-self:center;">→</div>
-            </div>
-            <div style="margin-top:12px; padding-top:8px; border-top:1px solid var(--border-card); font-size:12px; color:var(--text-muted); display:flex; justify-content:space-between; align-items:center; gap:8px;">
-                <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">Admin: ${t.admin_username} | ${t.max_teams} hold</span>
-                ${isAdmin ? `<button class="btn-danger btn-sm" style="padding:4px 10px; font-size:11px;" onclick="event.stopPropagation(); deleteTournament('${t.id}')">🗑️ Slet</button>` : ''}
+                <div style="margin-top:12px; padding-top:8px; border-top:1px solid var(--border-card); font-size:12px; color:var(--text-muted); display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                    <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">Admin: ${t.admin_username} | ${t.max_teams} hold</span>
+                    ${isAdmin ? `<button class="btn-danger btn-sm" style="padding:4px 10px; font-size:11px;" onclick="event.stopPropagation(); deleteTournament('${t.id}')">🗑️ Slet</button>` : ''}
+                </div>
             </div>`;
-        listDiv.appendChild(card);
-    });
+    };
+
+    let html = '';
+
+    if (activeTournaments.length > 0) {
+        activeTournaments.forEach(t => { html += renderCard(t); });
+    } else {
+        html += `<div class="card" style="text-align:center; padding:20px; color:var(--text-muted); margin-bottom:10px;">Ingen aktive turneringer i øjeblikket.</div>`;
+    }
+
+    if (finishedTournaments.length > 0) {
+        html += `
+            <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-card);">
+                <button class="btn-secondary" onclick="toggleFinishedTournaments()" style="width:100%; display:flex; justify-content:space-between; align-items:center; padding: 12px 14px; font-size:13px; font-weight:700;">
+                    <span>🏆 Afsluttede turneringer (${finishedTournaments.length})</span>
+                    <span>${showFinishedTournaments ? '▲ Skjul' : '▼ Vis'}</span>
+                </button>
+            </div>`;
+
+        if (showFinishedTournaments) {
+            html += `<div style="margin-top: 10px; display:flex; flex-direction:column;">`;
+            finishedTournaments.forEach(t => { html += renderCard(t); });
+            html += `</div>`;
+        }
+    }
+
+    listDiv.innerHTML = html;
 }
 
 // Open Tournament View

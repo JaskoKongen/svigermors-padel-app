@@ -384,16 +384,29 @@ async function restartTournament() {
 
     if (!confirm(`Vil du genoprette turneringen "${currentTournament.name}"?\n\nDette opretter en ny udgave i tilmeldingsfasen med alle eksisterende hold kopieret over, så spillere kan framelde sig eller nye kan deltage.`)) return;
 
-    // 1. Hent alle eksisterende hold i den færdige turnering
+    // 1. Find det rene grundnavn uden gamle numre eller (Ny)
+    let baseName = currentTournament.name.replace(/\s*[\(\#](Ny|v?\d+)[\)]?/gi, '').trim();
+
+    // Tæl eksisterende udgaver for at finde det næste tal
+    const { data: existing } = await client.from('tournaments').select('name');
+    let nextNum = 2;
+    if (existing) {
+        const matchesCount = existing.filter(t => t.name.startsWith(baseName)).length;
+        if (matchesCount >= 1) nextNum = matchesCount + 1;
+    }
+
+    const newName = `${baseName} #${nextNum}`;
+
+    // 2. Hent alle eksisterende hold i den færdige turnering
     const { data: oldTeams } = await client
         .from('teams')
         .select('*')
         .eq('tournament_id', currentTournamentId)
         .order('team_number', { ascending: true });
 
-    // 2. Opret ny turnering i tilmeldingsfasen (status = 'registration')
+    // 3. Opret ny turnering i tilmeldingsfasen (status = 'registration')
     const { data: newT, error } = await client.from('tournaments').insert({
-        name: currentTournament.name + " (Ny)",
+        name: newName,
         admin_username: currentUser,
         admin_contact: currentTournament.admin_contact,
         format: currentTournament.format,
@@ -403,7 +416,7 @@ async function restartTournament() {
 
     if (error) return alert("Fejl ved oprettelse: " + error.message);
 
-    // 3. Kopier spillere over i de nye hold
+    // 4. Kopier spillere over i de nye hold
     const newTeamsToInsert = [];
     for (let i = 1; i <= newT.max_teams; i++) {
         const oldTeam = oldTeams ? oldTeams.find(t => t.team_number === i) : null;
@@ -417,6 +430,6 @@ async function restartTournament() {
 
     await client.from('teams').insert(newTeamsToInsert);
 
-    alert("Turneringen er genoprettet i tilmeldingsfasen med alle spillere kopieret over! Du kan starte turneringen, når holdene er bekræftet.");
+    alert(`Turneringen er genoprettet som "${newName}" i tilmeldingsfasen med alle spillere kopieret over!`);
     openTournament(newT.id);
 }
