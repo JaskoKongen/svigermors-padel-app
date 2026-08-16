@@ -103,7 +103,13 @@ async function fetchMatches() {
     if (adminFinishedDiv) {
         if (finishedCount === matches.length && matches.length > 0) {
             const isAdmin = currentTournament && currentTournament.admin_username && currentTournament.admin_username.toLowerCase() === (currentUser || '').toLowerCase();
-            await client.from('tournaments').update({ status: 'finished' }).eq('id', currentTournamentId);
+            
+            // Tjek om status allerede er 'finished' for at undgå uendelig Realtime-løkke
+            if (currentTournament && currentTournament.status !== 'finished') {
+                currentTournament.status = 'finished';
+                await client.from('tournaments').update({ status: 'finished' }).eq('id', currentTournamentId);
+            }
+
             adminFinishedDiv.innerHTML = `
                 <div class="card" style="text-align:center; background: linear-gradient(135deg, rgba(16,185,129,0.15) 0%, rgba(59,130,246,0.15) 100%); border: 1px solid rgba(16,185,129,0.3);">
                     <h3 style="color:var(--text-main); margin-top:0; font-size:17px;">🏁 Turneringen er færdigspillet!</h3>

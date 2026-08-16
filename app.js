@@ -484,8 +484,19 @@ function setupTournamentRealtime(tId) {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'teams', filter: `tournament_id=eq.${tId}` }, () => fetchTeams())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'matches', filter: `tournament_id=eq.${tId}` }, () => fetchMatches())
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tournaments', filter: `id=eq.${tId}` }, async (payload) => {
+            const oldStatus = currentTournament ? currentTournament.status : null;
             currentTournament = payload.new;
-            openTournament(tId);
+
+            const badge = document.getElementById('t-detail-status-badge');
+            if (badge) {
+                let statusText = currentTournament.status === 'registration' ? 'Tilmeldingsfase' : (currentTournament.status === 'matches' ? 'Kampprogram i gang 🎾' : 'Afsluttet 🏆');
+                badge.innerText = statusText;
+            }
+
+            if (oldStatus === 'registration' && currentTournament.status === 'matches') {
+                switchTab('matches');
+                fetchMatches();
+            }
         })
         .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tournaments', filter: `id=eq.${tId}` }, () => {
             alert("Turneringen er blevet slettet af admin.");
