@@ -194,6 +194,36 @@ function openPwaInstallModal() {
     document.getElementById('ios-install-modal').style.display = 'flex';
 }
 
+function checkInAppBrowser() {
+    const ua = navigator.userAgent || navigator.vendor || window.opera;
+    const isInApp = /FBAN|FBAV|Instagram|Messenger|LinkedIn|Twitter|ByteDance|TikTok/i.test(ua);
+    const warning = document.getElementById('in-app-browser-warning');
+    if (!warning) return;
+
+    if (isInApp) {
+        warning.style.display = 'block';
+        const isAndroid = /Android/.test(ua);
+        const actionContainer = document.getElementById('in-app-action-container');
+        
+        if (actionContainer) {
+            if (isAndroid) {
+                const currentUrl = window.location.href.replace(/^https?:\/\//, '');
+                actionContainer.innerHTML = `
+                    <a href="intent://${currentUrl}#Intent;scheme=https;package=com.android.chrome;end" style="background:#ffffff; color:#b45309; font-weight:800; font-size:13px; text-align:center; display:block; text-decoration:none; padding:10px 14px; border-radius: var(--radius-sm);">
+                        🌐 Åbn i Chrome med 1 klik
+                    </a>`;
+            } else {
+                actionContainer.innerHTML = `
+                    <div style="background: rgba(0,0,0,0.25); padding: 10px 12px; border-radius: 8px; font-size: 12px;">
+                        <strong>📱 På iPhone:</strong> Tryk på <strong>tre prikker (⋮)</strong> eller <strong>del-ikonet (⎕↑)</strong> øverst/nederst i højre hjørne og vælg <strong>"Åbn i Safari"</strong>.
+                    </div>`;
+            }
+        }
+    } else {
+        warning.style.display = 'none';
+    }
+}
+
 function closeModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) modal.style.display = 'none';
@@ -202,6 +232,7 @@ function closeModal(modalId) {
 // App Initialization
 function init() {
     initTheme();
+    checkInAppBrowser();
     checkPwaBanner();
 
     if (!currentUser) {
