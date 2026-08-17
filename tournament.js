@@ -545,12 +545,14 @@ async function restartTournament() {
     // 1. Find det rene grundnavn uden gamle numre eller (Ny)
     let baseName = currentTournament.name.replace(/\s*[\(\#](Ny|v?\d+)[\)]?/gi, '').trim();
 
-    // Tæl eksisterende udgaver for at finde det næste tal
+    // Find det næste ledige udgavenummer (#2, #3, #4...)
     const { data: existing } = await client.from('tournaments').select('name');
     let nextNum = 2;
     if (existing) {
-        const matchesCount = existing.filter(t => t.name.startsWith(baseName)).length;
-        if (matchesCount >= 1) nextNum = matchesCount + 1;
+        const existingNames = existing.map(t => t.name.toLowerCase());
+        while (existingNames.includes(`${baseName} #${nextNum}`.toLowerCase())) {
+            nextNum++;
+        }
     }
 
     const newName = `${baseName} #${nextNum}`;

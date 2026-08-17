@@ -680,6 +680,21 @@ async function submitCreateTournament() {
         return showCustomAlert("Udfyld venligst et turneringsnavn.", "Manglende oplysninger ⚠️", "⚠️");
     }
 
+    // 1. Tjek om navnet indeholder reserveret # siffer-notation (fx #2, #3)
+    if (/#\d+/i.test(name)) {
+        return showCustomAlert("Sufikset '#tal' (fx #2) er reserveret til gentagne turneringer!\n\nVælg venligst et navn uden '#tal'. Næste udgaver oprettes automatisk med #2, #3 osv. via 'Start Næste Turnering'.", "Reserveret Navneformat ⚠️", "⚠️");
+    }
+
+    // 2. Tjek i databasen om der allerede findes en turnering med samme navn (case-insensitive)
+    const { data: existing } = await client
+        .from('tournaments')
+        .select('id, name')
+        .ilike('name', name);
+
+    if (existing && existing.length > 0) {
+        return showCustomAlert(`Der findes allerede en turnering med navnet "${name}". Vælg venligst et andet unikt navn!`, "Optaget Turneringsnavn ⚠️", "⚠️");
+    }
+
     const { data: newT, error } = await client.from('tournaments').insert({
         name: name,
         admin_username: currentUser,
