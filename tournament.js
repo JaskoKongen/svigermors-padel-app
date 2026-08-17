@@ -70,35 +70,31 @@ async function startTournament(overrideTeamsCount) {
             matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 7, round: 2, match_type: "🔄 Taber-semi 1", status: 'waiting' });
             matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 8, round: 2, match_type: "🔄 Taber-semi 2", status: 'waiting' });
 
-            matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 9, round: 3, match_type: "🏆 FINALE", status: 'waiting' });
+            matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 9, round: 3, match_type: "🏆 FINALE (1./2. Plads)", status: 'waiting' });
             matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 10, round: 3, match_type: "🥉 3./4. PLADS", status: 'waiting' });
             matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 11, round: 3, match_type: "🏅 5./6. PLADS", status: 'waiting' });
             matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 12, round: 3, match_type: "🎖️ 7./8. PLADS", status: 'waiting' });
-        } else {
-            // 16 eller 32 Hold: Opret efterfølgende runder dynamisk
-            let matchIdx = r1MatchesCount + 1;
-            let currentRound = 2;
-            let currentNumMatches = r1MatchesCount;
+        } else if (effectiveMaxTeams === 16) {
+            // 16 Hold (4 runder - 32 kampe totalt, alle hold får 4 kampe)
+            // Runde 2: 9..12 Kvart, 13..16 Taber-kvart
+            for (let i = 1; i <= 4; i++) matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 8 + i, round: 2, match_type: `🔥 Kvartfinale ${i}`, status: 'waiting' });
+            for (let i = 1; i <= 4; i++) matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 12 + i, round: 2, match_type: `🔄 Taber-kvart ${i}`, status: 'waiting' });
 
-            while (currentNumMatches > 1) {
-                for (let i = 0; i < currentNumMatches; i++) {
-                    let label = `Runde ${currentRound} - Kamp ${i + 1}`;
-                    if (currentNumMatches === 8) label = `🔥 Kvartfinale ${i + 1}`;
-                    if (currentNumMatches === 4) label = `🚀 Semifinale ${i + 1}`;
-                    if (currentNumMatches === 2 && i === 0) label = `🏆 FINALE`;
-                    if (currentNumMatches === 2 && i === 1) label = `🥉 3./4. PLADS`;
+            // Runde 3: 17..24 Semifinaler (A, B, C, D grene)
+            for (let i = 1; i <= 2; i++) matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 16 + i, round: 3, match_type: `🚀 A-Semifinale ${i}`, status: 'waiting' });
+            for (let i = 1; i <= 2; i++) matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 18 + i, round: 3, match_type: `🔄 B-Semifinale ${i}`, status: 'waiting' });
+            for (let i = 1; i <= 2; i++) matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 20 + i, round: 3, match_type: `🚀 C-Semifinale ${i}`, status: 'waiting' });
+            for (let i = 1; i <= 2; i++) matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 22 + i, round: 3, match_type: `🔄 D-Semifinale ${i}`, status: 'waiting' });
 
-                    matchesToCreate.push({
-                        tournament_id: currentTournamentId,
-                        match_number: matchIdx++,
-                        round: currentRound,
-                        match_type: label,
-                        status: 'waiting'
-                    });
-                }
-                currentNumMatches /= 2;
-                currentRound++;
-            }
+            // Runde 4: 25..32 Placement matches (1-16 plads for ALLE 16 hold)
+            matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 25, round: 4, match_type: "🏆 FINALE (1./2. Plads)", status: 'waiting' });
+            matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 26, round: 4, match_type: "🥉 3./4. PLADS", status: 'waiting' });
+            matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 27, round: 4, match_type: "🏅 5./6. PLADS", status: 'waiting' });
+            matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 28, round: 4, match_type: "🎖️ 7./8. PLADS", status: 'waiting' });
+            matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 29, round: 4, match_type: "🏅 9./10. PLADS", status: 'waiting' });
+            matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 30, round: 4, match_type: "🎖️ 11./12. PLADS", status: 'waiting' });
+            matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 31, round: 4, match_type: "🏅 13./14. PLADS", status: 'waiting' });
+            matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 32, round: 4, match_type: "🎖️ 15./16. PLADS", status: 'waiting' });
         }
     }
 
@@ -167,10 +163,12 @@ async function fetchMatches() {
         rounds[m.round].push(m);
     });
 
+    const maxT = currentTournament?.max_teams || 8;
     const roundTitles = {
-        1: currentTournament?.max_teams === 4 ? "Semifinaler" : "Runde 1 (Indledende)",
-        2: currentTournament?.max_teams === 4 ? "Finaler & Placering" : "Runde 2 (Semifinaler)",
-        3: "Runde 3 (Finaler & Placeringer)"
+        1: maxT === 4 ? "Runde 1 (Semifinaler)" : "Runde 1 (Indledende)",
+        2: maxT === 4 ? "Runde 2 (Finaler & Placeringer)" : (maxT === 8 ? "Runde 2 (Semifinaler)" : "Runde 2 (Kvartfinaler & Taber-Kvart)"),
+        3: maxT === 8 ? "Runde 3 (Finaler & Placeringer)" : "Runde 3 (Semifinaler)",
+        4: "Runde 4 (Finaler & Placeringer 1.-16. plads)"
     };
 
     for (const [roundNum, roundMatches] of Object.entries(rounds)) {
@@ -281,31 +279,32 @@ async function calculateLeaderboard(matches) {
     });
 
     // Bestem placeringsrang ud fra finalerne
-    if (currentTournament?.max_teams === 4) {
-        const finalMatch = matches.find(m => m.match_number === 3 && m.status === 'finished');
-        if (finalMatch && finalMatch.winner_team_id) {
-            const loserId = finalMatch.winner_team_id === finalMatch.team_a_id ? finalMatch.team_b_id : finalMatch.team_a_id;
-            if (stats[finalMatch.winner_team_id]) stats[finalMatch.winner_team_id].finalRank = 1;
-            if (stats[loserId]) stats[loserId].finalRank = 2;
+    const maxT = currentTournament?.max_teams || 8;
+    let finalRanks = {};
+
+    if (maxT === 4) {
+        finalRanks = { 3: [1, 2], 4: [3, 4] };
+    } else if (maxT === 8) {
+        finalRanks = { 9: [1, 2], 10: [3, 4], 11: [5, 6], 12: [7, 8] };
+    } else if (maxT === 16) {
+        finalRanks = { 
+            25: [1, 2], 26: [3, 4], 27: [5, 6], 28: [7, 8],
+            29: [9, 10], 30: [11, 12], 31: [13, 14], 32: [15, 16]
+        };
+    } else if (maxT === 32) {
+        for (let i = 0; i < 16; i++) {
+            finalRanks[65 + i] = [i * 2 + 1, i * 2 + 2];
         }
-        const match3rd = matches.find(m => m.match_number === 4 && m.status === 'finished');
-        if (match3rd && match3rd.winner_team_id) {
-            const loserId = match3rd.winner_team_id === match3rd.team_a_id ? match3rd.team_b_id : match3rd.team_a_id;
-            if (stats[match3rd.winner_team_id]) stats[match3rd.winner_team_id].finalRank = 3;
-            if (stats[loserId]) stats[loserId].finalRank = 4;
-        }
-    } else {
-        // 8 Hold placeringskampe: Kamp 9 (1/2), Kamp 10 (3/4), Kamp 11 (5/6), Kamp 12 (7/8)
-        const finalRanks = { 9: [1, 2], 10: [3, 4], 11: [5, 6], 12: [7, 8] };
-        Object.entries(finalRanks).forEach(([mNum, ranks]) => {
-            const m = matches.find(x => x.match_number == mNum);
-            if (m && m.status === 'finished' && m.winner_team_id && m.team_a_id && m.team_b_id) {
-                const loserId = m.winner_team_id === m.team_a_id ? m.team_b_id : m.team_a_id;
-                if (stats[m.winner_team_id]) stats[m.winner_team_id].finalRank = ranks[0];
-                if (stats[loserId]) stats[loserId].finalRank = ranks[1];
-            }
-        });
     }
+
+    Object.entries(finalRanks).forEach(([mNum, ranks]) => {
+        const m = matches.find(x => x.match_number == mNum);
+        if (m && m.status === 'finished' && m.winner_team_id && m.team_a_id && m.team_b_id) {
+            const loserId = m.winner_team_id === m.team_a_id ? m.team_b_id : m.team_a_id;
+            if (stats[m.winner_team_id]) stats[m.winner_team_id].finalRank = ranks[0];
+            if (stats[loserId]) stats[loserId].finalRank = ranks[1];
+        }
+    });
 
     let lb = Object.values(stats).sort((a, b) => {
         if (a.finalRank !== b.finalRank) return a.finalRank - b.finalRank;
@@ -371,54 +370,61 @@ async function saveScore() {
     fetchMatches();
 }
 
+async function setMatchTeamSlot(tId, matchNum, slot, teamId) {
+    let updateObj = {};
+    updateObj[slot] = teamId;
+
+    const { data: targetMatch } = await client
+        .from('matches')
+        .select('*')
+        .eq('tournament_id', tId)
+        .eq('match_number', matchNum)
+        .single();
+
+    if (targetMatch) {
+        const otherSlot = slot === 'team_a_id' ? 'team_b_id' : 'team_a_id';
+        if (targetMatch[otherSlot]) {
+            updateObj.status = 'ready';
+        }
+    }
+
+    await client.from('matches').update(updateObj).eq('tournament_id', tId).eq('match_number', matchNum);
+}
+
 async function advanceTeams(tId, matchNum, winnerId, loserId) {
-    if (currentTournament?.max_teams === 4) {
-        // 4 Hold: Kamp 1 & 2 går til Kamp 3 (Finale) & Kamp 4 (3. plads)
-        const p = {
+    const maxTeams = currentTournament?.max_teams || 8;
+
+    if (maxTeams === 4) {
+        const p4 = {
             1: { w: [3, 'team_a_id'], l: [4, 'team_a_id'] },
             2: { w: [3, 'team_b_id'], l: [4, 'team_b_id'] }
         };
-        const n = p[matchNum];
+        const n = p4[matchNum];
         if (n) {
-            let uw = {}; uw[n.w[1]] = winnerId;
-            await client.from('matches').update(uw).eq('tournament_id', tId).eq('match_number', n.w[0]);
-
-            let ul = {}; ul[n.l[1]] = loserId;
-            await client.from('matches').update(ul).eq('tournament_id', tId).eq('match_number', n.l[0]);
+            await setMatchTeamSlot(tId, n.w[0], n.w[1], winnerId);
+            await setMatchTeamSlot(tId, n.l[0], n.l[1], loserId);
         }
-    } else {
-        // 8 Hold: TILFÆLDIG LODTRÆKNING (RANDOM SEEDING) AF SEMIFINALER EFTER RUNDE 1
-        const { data: r1Matches } = await client
-            .from('matches')
-            .select('*')
-            .eq('tournament_id', tId)
-            .eq('round', 1);
-
-        const finishedR1 = r1Matches.filter(m => m.status === 'finished');
+    } else if (maxTeams === 8) {
+        // 8 Hold
+        const { data: r1Matches } = await client.from('matches').select('*').eq('tournament_id', tId).eq('round', 1);
+        const finishedR1 = r1Matches ? r1Matches.filter(m => m.status === 'finished') : [];
 
         if (finishedR1.length === 4) {
-            // Tjek om semifinalerne allerede er blevet parret
             const { data: semi1 } = await client.from('matches').select('*').eq('tournament_id', tId).eq('match_number', 5).single();
-
-            if (!semi1.team_a_id) {
-                // Alle 4 indledende kampe er færdige! Træk nu 100% tilfældigt lod blandt vinderne og taberne
+            if (semi1 && !semi1.team_a_id) {
                 const winners = finishedR1.map(m => m.winner_team_id);
                 const losers = finishedR1.map(m => (m.winner_team_id === m.team_a_id ? m.team_b_id : m.team_a_id));
 
-                const shuffledWinners = [...winners].sort(() => Math.random() - 0.5);
-                const shuffledLosers = [...losers].sort(() => Math.random() - 0.5);
+                const sw = [...winners].sort(() => Math.random() - 0.5);
+                const sl = [...losers].sort(() => Math.random() - 0.5);
 
-                // Semi 1 (Kamp 5) & Semi 2 (Kamp 6)
-                await client.from('matches').update({ team_a_id: shuffledWinners[0], team_b_id: shuffledWinners[1], status: 'ready' }).eq('tournament_id', tId).eq('match_number', 5);
-                await client.from('matches').update({ team_a_id: shuffledWinners[2], team_b_id: shuffledWinners[3], status: 'ready' }).eq('tournament_id', tId).eq('match_number', 6);
-
-                // Taber-semi 1 (Kamp 7) & Taber-semi 2 (Kamp 8)
-                await client.from('matches').update({ team_a_id: shuffledLosers[0], team_b_id: shuffledLosers[1], status: 'ready' }).eq('tournament_id', tId).eq('match_number', 7);
-                await client.from('matches').update({ team_a_id: shuffledLosers[2], team_b_id: shuffledLosers[3], status: 'ready' }).eq('tournament_id', tId).eq('match_number', 8);
+                await client.from('matches').update({ team_a_id: sw[0], team_b_id: sw[1], status: 'ready' }).eq('tournament_id', tId).eq('match_number', 5);
+                await client.from('matches').update({ team_a_id: sw[2], team_b_id: sw[3], status: 'ready' }).eq('tournament_id', tId).eq('match_number', 6);
+                await client.from('matches').update({ team_a_id: sl[0], team_b_id: sl[1], status: 'ready' }).eq('tournament_id', tId).eq('match_number', 7);
+                await client.from('matches').update({ team_a_id: sl[2], team_b_id: sl[3], status: 'ready' }).eq('tournament_id', tId).eq('match_number', 8);
             }
         }
 
-        // Progression fra Runde 2 til Runde 3 (Finalerne 1-8 plads)
         if (matchNum >= 5 && matchNum <= 8) {
             const finalMap = {
                 5: { w: [9, 'team_a_id'], l: [10, 'team_a_id'] },
@@ -428,11 +434,73 @@ async function advanceTeams(tId, matchNum, winnerId, loserId) {
             };
             const fn = finalMap[matchNum];
             if (fn) {
-                let uw = {}; uw[fn.w[1]] = winnerId;
-                await client.from('matches').update(uw).eq('tournament_id', tId).eq('match_number', fn.w[0]);
+                await setMatchTeamSlot(tId, fn.w[0], fn.w[1], winnerId);
+                await setMatchTeamSlot(tId, fn.l[0], fn.l[1], loserId);
+            }
+        }
+    } else if (maxTeams === 16) {
+        // 16 Hold (4 Runder)
+        const { data: r1Matches } = await client.from('matches').select('*').eq('tournament_id', tId).eq('round', 1);
+        const finishedR1 = r1Matches ? r1Matches.filter(m => m.status === 'finished') : [];
 
-                let ul = {}; ul[fn.l[1]] = loserId;
-                await client.from('matches').update(ul).eq('tournament_id', tId).eq('match_number', fn.l[0]);
+        if (finishedR1.length === 8) {
+            const { data: q1 } = await client.from('matches').select('*').eq('tournament_id', tId).eq('match_number', 9).single();
+            if (q1 && !q1.team_a_id) {
+                const winners = finishedR1.map(m => m.winner_team_id);
+                const losers = finishedR1.map(m => (m.winner_team_id === m.team_a_id ? m.team_b_id : m.team_a_id));
+
+                const sw = [...winners].sort(() => Math.random() - 0.5);
+                const sl = [...losers].sort(() => Math.random() - 0.5);
+
+                // Vind-Kvartfinaler (Kamp 9..12)
+                await client.from('matches').update({ team_a_id: sw[0], team_b_id: sw[1], status: 'ready' }).eq('tournament_id', tId).eq('match_number', 9);
+                await client.from('matches').update({ team_a_id: sw[2], team_b_id: sw[3], status: 'ready' }).eq('tournament_id', tId).eq('match_number', 10);
+                await client.from('matches').update({ team_a_id: sw[4], team_b_id: sw[5], status: 'ready' }).eq('tournament_id', tId).eq('match_number', 11);
+                await client.from('matches').update({ team_a_id: sw[6], team_b_id: sw[7], status: 'ready' }).eq('tournament_id', tId).eq('match_number', 12);
+
+                // Taber-Kvartfinaler (Kamp 13..16)
+                await client.from('matches').update({ team_a_id: sl[0], team_b_id: sl[1], status: 'ready' }).eq('tournament_id', tId).eq('match_number', 13);
+                await client.from('matches').update({ team_a_id: sl[2], team_b_id: sl[3], status: 'ready' }).eq('tournament_id', tId).eq('match_number', 14);
+                await client.from('matches').update({ team_a_id: sl[4], team_b_id: sl[5], status: 'ready' }).eq('tournament_id', tId).eq('match_number', 15);
+                await client.from('matches').update({ team_a_id: sl[6], team_b_id: sl[7], status: 'ready' }).eq('tournament_id', tId).eq('match_number', 16);
+            }
+        }
+
+        // Runde 2 til Runde 3 (Kvartfinaler til Semifinaler)
+        if (matchNum >= 9 && matchNum <= 16) {
+            const p16_r2 = {
+                9:  { w: [17, 'team_a_id'], l: [19, 'team_a_id'] },
+                10: { w: [17, 'team_b_id'], l: [19, 'team_b_id'] },
+                11: { w: [18, 'team_a_id'], l: [20, 'team_a_id'] },
+                12: { w: [18, 'team_b_id'], l: [20, 'team_b_id'] },
+                13: { w: [21, 'team_a_id'], l: [23, 'team_a_id'] },
+                14: { w: [21, 'team_b_id'], l: [23, 'team_b_id'] },
+                15: { w: [22, 'team_a_id'], l: [24, 'team_a_id'] },
+                16: { w: [22, 'team_b_id'], l: [24, 'team_b_id'] }
+            };
+            const fn = p16_r2[matchNum];
+            if (fn) {
+                await setMatchTeamSlot(tId, fn.w[0], fn.w[1], winnerId);
+                await setMatchTeamSlot(tId, fn.l[0], fn.l[1], loserId);
+            }
+        }
+
+        // Runde 3 til Runde 4 (Semifinaler til Finaler og placeringer 1-16)
+        if (matchNum >= 17 && matchNum <= 24) {
+            const p16_r3 = {
+                17: { w: [25, 'team_a_id'], l: [26, 'team_a_id'] },
+                18: { w: [25, 'team_b_id'], l: [26, 'team_b_id'] },
+                19: { w: [27, 'team_a_id'], l: [28, 'team_a_id'] },
+                20: { w: [27, 'team_b_id'], l: [28, 'team_b_id'] },
+                21: { w: [29, 'team_a_id'], l: [30, 'team_a_id'] },
+                22: { w: [29, 'team_b_id'], l: [30, 'team_b_id'] },
+                23: { w: [31, 'team_a_id'], l: [32, 'team_a_id'] },
+                24: { w: [31, 'team_b_id'], l: [32, 'team_b_id'] }
+            };
+            const fn = p16_r3[matchNum];
+            if (fn) {
+                await setMatchTeamSlot(tId, fn.w[0], fn.w[1], winnerId);
+                await setMatchTeamSlot(tId, fn.l[0], fn.l[1], loserId);
             }
         }
     }

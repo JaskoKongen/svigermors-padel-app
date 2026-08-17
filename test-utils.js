@@ -145,74 +145,13 @@ const PadelTest = {
         currentTournament = newT;
         if (typeof openTournament === 'function') await openTournament(newT.id);
 
-        // 3. Start turnering
-        const { data: teams } = await client.from('teams').select('*').eq('tournament_id', newT.id);
-        const shuffledTeams = [...teams].sort(() => Math.random() - 0.5);
-
-        await client.from('matches').delete().eq('tournament_id', newT.id);
-        const matchesToCreate = [];
-        const r1MatchesCount = maxTeams / 2;
-
-        for (let i = 0; i < r1MatchesCount; i++) {
-            matchesToCreate.push({
-                tournament_id: newT.id,
-                match_number: i + 1,
-                round: 1,
-                match_type: `🎾 Indledende Kamp ${i + 1}`,
-                team_a_id: shuffledTeams[i * 2]?.id || null,
-                team_b_id: shuffledTeams[i * 2 + 1]?.id || null,
-                status: 'ready'
-            });
+        // 3. Start turnering (genererer fuldt placerings-bracket med taber-kampe)
+        if (typeof startTournament === 'function') {
+            await startTournament(maxTeams);
         }
-
-        if (maxTeams === 4) {
-            matchesToCreate.push({ tournament_id: newT.id, match_number: 3, round: 2, match_type: "🏆 FINALE", status: 'waiting' });
-            matchesToCreate.push({ tournament_id: newT.id, match_number: 4, round: 2, match_type: "🥉 3./4. PLADS", status: 'waiting' });
-        } else if (maxTeams === 8) {
-            matchesToCreate.push({ tournament_id: newT.id, match_number: 5, round: 2, match_type: "🚀 Semifinale 1", status: 'waiting' });
-            matchesToCreate.push({ tournament_id: newT.id, match_number: 6, round: 2, match_type: "🚀 Semifinale 2", status: 'waiting' });
-            matchesToCreate.push({ tournament_id: newT.id, match_number: 7, round: 2, match_type: "🔄 Taber-semi 1", status: 'waiting' });
-            matchesToCreate.push({ tournament_id: newT.id, match_number: 8, round: 2, match_type: "🔄 Taber-semi 2", status: 'waiting' });
-
-            matchesToCreate.push({ tournament_id: newT.id, match_number: 9, round: 3, match_type: "🏆 FINALE", status: 'waiting' });
-            matchesToCreate.push({ tournament_id: newT.id, match_number: 10, round: 3, match_type: "🥉 3./4. PLADS", status: 'waiting' });
-            matchesToCreate.push({ tournament_id: newT.id, match_number: 11, round: 3, match_type: "🏅 5./6. PLADS", status: 'waiting' });
-            matchesToCreate.push({ tournament_id: newT.id, match_number: 12, round: 3, match_type: "🎖️ 7./8. PLADS", status: 'waiting' });
-        } else {
-            let matchIdx = r1MatchesCount + 1;
-            let currentRound = 2;
-            let currentNumMatches = r1MatchesCount;
-
-            while (currentNumMatches > 1) {
-                for (let i = 0; i < currentNumMatches; i++) {
-                    let label = `Runde ${currentRound} - Kamp ${i + 1}`;
-                    if (currentNumMatches === 8) label = `🔥 Kvartfinale ${i + 1}`;
-                    if (currentNumMatches === 4) label = `🚀 Semifinale ${i + 1}`;
-                    if (currentNumMatches === 2 && i === 0) label = `🏆 FINALE`;
-                    if (currentNumMatches === 2 && i === 1) label = `🥉 3./4. PLADS`;
-
-                    matchesToCreate.push({
-                        tournament_id: newT.id,
-                        match_number: matchIdx++,
-                        round: currentRound,
-                        match_type: label,
-                        status: 'waiting'
-                    });
-                }
-                currentNumMatches /= 2;
-                currentRound++;
-            }
-        }
-
-        await client.from('matches').insert(matchesToCreate);
-        await client.from('tournaments').update({ status: 'matches' }).eq('id', newT.id);
-        currentTournament.status = 'matches';
-
-        if (typeof updateNavVisibility === 'function') updateNavVisibility();
-        if (typeof switchTab === 'function') switchTab('matches');
 
         // 4. Afvikl runder indtil alle kampe er færdige
-        let roundsLimit = 10;
+        let roundsLimit = 15;
         while (roundsLimit-- > 0) {
             const { data: remainingReady } = await client
                 .from('matches')
@@ -222,7 +161,7 @@ const PadelTest = {
 
             if (!remainingReady || remainingReady.length === 0) break;
             await this.playCurrentMatches(newT.id);
-            await new Promise(r => setTimeout(r, 400));
+            await new Promise(r => setTimeout(r, 300));
         }
 
         console.log(`%c🏆 Simulering af "${tName}" er gennemført 100%!`, "color: #10b981; font-weight: bold; font-size: 15px;");
