@@ -362,11 +362,31 @@ function openScoreModal(match) {
     activeMatchId = match.id;
     const isSingle = currentTournament?.format === 'single';
 
-    const nameA = match.team_a ? (isSingle ? match.team_a.player1 : `HOLD ${match.team_a.team_number}`) : 'TBD';
-    const nameB = match.team_b ? (isSingle ? match.team_b.player1 : `HOLD ${match.team_b.team_number}`) : 'TBD';
+    const getTeamDisplayName = (team) => {
+        if (!team) return 'TBD';
+        if (isSingle) return team.player1 || `Hold ${team.team_number}`;
+        const p1 = team.player1 ? team.player1.trim() : '';
+        const p2 = team.player2 ? team.player2.trim() : '';
+        if (p1 && p2) return `${p1} / ${p2}`;
+        if (p1) return p1;
+        return `Hold ${team.team_number}`;
+    };
 
-    document.getElementById('team-a-label').innerText = nameA;
-    document.getElementById('team-b-label').innerText = nameB;
+    const nameA = getTeamDisplayName(match.team_a);
+    const nameB = getTeamDisplayName(match.team_b);
+
+    const labelA = document.getElementById('team-a-label');
+    const labelB = document.getElementById('team-b-label');
+
+    if (labelA) {
+        labelA.innerText = nameA;
+        labelA.title = nameA;
+    }
+    if (labelB) {
+        labelB.innerText = nameB;
+        labelB.title = nameB;
+    }
+
     document.getElementById('score-a').value = match.score_a || 0;
     document.getElementById('score-b').value = match.score_b || 0;
     document.getElementById('score-modal').style.display = 'flex';

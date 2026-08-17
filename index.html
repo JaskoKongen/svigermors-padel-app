@@ -217,15 +217,15 @@
     <div id="score-modal" class="modal">
         <div class="modal-content">
             <h3 style="margin-top:0; font-size: 18px;">Indtast Resultat 🎾</h3>
-            <div style="display:flex; justify-content:space-around; align-items:center; margin:20px 0;">
-                <div style="text-align: center;">
-                    <div id="team-a-label" style="font-size: 11px; font-weight: 700; color: var(--accent-green-bright); margin-bottom: 4px;"></div>
-                    <input type="number" id="score-a" min="0" style="text-align: center; font-size: 22px; font-weight: bold; width: 66px; height:46px; margin: 0;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin:20px 0;">
+                <div style="flex:1; text-align: center; min-width:0;">
+                    <div id="team-a-label" style="font-size: 13px; font-weight: 700; color: var(--accent-green-bright); margin-bottom: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></div>
+                    <input type="number" id="score-a" min="0" style="text-align: center; font-size: 22px; font-weight: bold; width: 68px; height:46px; margin: 0 auto; display: block;">
                 </div>
-                <div style="font-weight:900; font-size: 22px; color: var(--text-muted);">-</div>
-                <div style="text-align: center;">
-                    <div id="team-b-label" style="font-size: 11px; font-weight: 700; color: var(--accent-green-bright); margin-bottom: 4px;"></div>
-                    <input type="number" id="score-b" min="0" style="text-align: center; font-size: 22px; font-weight: bold; width: 66px; height:46px; margin: 0;">
+                <div style="font-weight:900; font-size: 22px; color: var(--text-muted); flex-shrink: 0;">-</div>
+                <div style="flex:1; text-align: center; min-width:0;">
+                    <div id="team-b-label" style="font-size: 13px; font-weight: 700; color: var(--accent-green-bright); margin-bottom: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></div>
+                    <input type="number" id="score-b" min="0" style="text-align: center; font-size: 22px; font-weight: bold; width: 68px; height:46px; margin: 0 auto; display: block;">
                 </div>
             </div>
             <button class="btn-primary" onclick="saveScore()">Gem Resultat</button>
