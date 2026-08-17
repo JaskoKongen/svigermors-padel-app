@@ -4,19 +4,56 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Svigermors Padel-Cup 🎾</title>
-    <meta name="description" content="Svigermors Padel-Cup - Den nemme app til padel-turneringer. Tilmelding, kampprogram, live stilling og tilfældig lodtrækning.">
-    <meta name="keywords" content="padel, padel cup, svigermors padel, padel turnering, padel kampprogram, padel app">
+    <!-- SEO & Core Meta Tags -->
+    <meta name="description" content="Svigermors Padel-Cup - Den nemme web app til padel-turneringer. Tilmelding, automatisk lodtrækning, live kampprogram og stilling.">
+    <meta name="keywords" content="padel, padel cup, svigermors padel, padel turnering, padel kampprogram, padel app, padel stilling, padel lodtrækning">
+    <meta name="author" content="Svigermors Padel-Cup">
     <meta name="robots" content="index, follow">
     <meta name="google-site-verification" content="Tx5AijAdYuy_BxBxor5GeoSEfXEQcy1_PE6rAtIVX4M" />
 
     <link rel="canonical" href="https://svigermorspadel.netlify.app/">
 
-    <!-- Open Graph / Social Media Preview -->
+    <!-- Performance Preconnects for Core Web Vitals -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://zmsbjjbcnulcbvdlvhsq.supabase.co" crossorigin>
+
+    <!-- Open Graph / Facebook / WhatsApp Preview -->
     <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Svigermors Padel-Cup">
     <meta property="og:url" content="https://svigermorspadel.netlify.app/">
     <meta property="og:title" content="Svigermors Padel-Cup 🎾">
-    <meta property="og:description" content="Live padel-turneringer, kampprogram og stilling. Gem appen direkte på din mobil!">
+    <meta property="og:description" content="Den nemme app til padel-turneringer. Live kampprogram, stilling og tilmelding direkte på din mobil!">
     <meta property="og:image" content="https://svigermorspadel.netlify.app/icon-512.png">
+    <meta property="og:image:width" content="512">
+    <meta property="og:image:height" content="512">
+    <meta property="og:image:alt" content="Svigermors Padel-Cup App Ikon">
+    <meta property="og:locale" content="da_DK">
+
+    <!-- Twitter Cards -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Svigermors Padel-Cup 🎾">
+    <meta name="twitter:description" content="Den nemme app til padel-turneringer. Live kampprogram, stilling og tilmelding.">
+    <meta name="twitter:image" content="https://svigermorspadel.netlify.app/icon-512.png">
+
+    <!-- JSON-LD Structured Data for Google Search Rich Results -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Svigermors Padel-Cup",
+      "url": "https://svigermorspadel.netlify.app/",
+      "description": "Den nemme web app til padel-turneringer. Tilmelding, automatisk lodtrækning, live kampprogram og stilling.",
+      "applicationCategory": "SportsApplication",
+      "operatingSystem": "All",
+      "inLanguage": "da-DK",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "DKK"
+      },
+      "image": "https://svigermorspadel.netlify.app/icon-512.png"
+    }
+    </script>
 
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
@@ -42,7 +79,7 @@
         </div>
     </header>
 
-    <div class="app-container">
+    <main class="app-container">
 
         <!-- 1. LOGIN / USER SETUP VIEW -->
         <div id="login-view" class="card" style="display:none;">
@@ -153,7 +190,7 @@
             </div>
         </div>
 
-    </div>
+    </main>
 
     <!-- Navigation Bar i bunden (når man er inde i en turnering) -->
     <div id="app-nav" class="bottom-nav" style="display:none;">
