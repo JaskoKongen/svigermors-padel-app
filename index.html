@@ -233,8 +233,8 @@
             <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">TURNERINGSNAVN</label>
             <input type="text" id="create-t-name" placeholder="Fx Fredags-Padel, Svigermors Cup...">
 
-            <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">STED / BANE (VALGFRIT)</label>
-            <input type="text" id="create-t-location" placeholder="Fx Match Padel Aarhus, Bane 3...">
+            <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">LOKATION / KLUB (VALGFRIT)</label>
+            <input type="text" id="create-t-location" placeholder="Fx KIF Padel Club, Match Padel...">
 
             <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">ADMIN KONTAKT-INFO (VALGFRIT)</label>
             <input type="text" id="create-t-contact" placeholder="Fx Tlf 12345678 eller Email (Valgfrit)...">
@@ -262,9 +262,9 @@
     <div id="join-tournament-modal" class="modal">
         <div class="modal-content" style="max-width: 480px;">
             <h3 style="margin-top:0; font-size: 18px;">Åbne Turneringer 🔍</h3>
-            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Søg efter en turnering eller vælg fra listen for at deltage.</p>
+            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Søg efter en turnering, klub/sted eller admin for at deltage.</p>
 
-            <input type="text" id="join-search-input" oninput="filterJoinTournaments()" placeholder="🔍 Søg efter turneringsnavn eller admin..." style="margin-bottom: 12px;">
+            <input type="text" id="join-search-input" oninput="filterJoinTournaments()" placeholder="🔍 Søg efter turnering, klub/sted eller admin..." style="margin-bottom: 12px;">
 
             <div id="open-tournaments-list" style="max-height: 300px; overflow-y: auto; margin-bottom: 14px;">
                 <!-- Liste over åbne turneringer -->
