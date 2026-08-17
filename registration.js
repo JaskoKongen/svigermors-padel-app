@@ -65,7 +65,8 @@ async function fetchTeams() {
         } else {
             // Tjek om det aktuelle antal tilmeldte hold er en gyldig turneringsstørrelse (fx 4 hold i en 8-holds turnering)
             const isEarlyValid = (maxTeams === 8 && filledTeamsCount === 4) || 
-                                 (maxTeams === 16 && (filledTeamsCount === 4 || filledTeamsCount === 8));
+                                 (maxTeams === 16 && (filledTeamsCount === 4 || filledTeamsCount === 8)) ||
+                                 (maxTeams === 32 && (filledTeamsCount === 4 || filledTeamsCount === 8 || filledTeamsCount === 16));
 
             if (isEarlyValid) {
                 if (isAdmin) {

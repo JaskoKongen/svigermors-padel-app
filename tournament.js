@@ -22,11 +22,17 @@ async function startTournament(overrideTeamsCount) {
 
     let effectiveMaxTeams = currentTournament.max_teams;
 
-    // Hvis der f.eks. er 4 tilmeldte hold i en 8-holds turnering og admin starter før tid:
     if (targetTeams <= 4 && currentTournament.max_teams > 4) {
         effectiveMaxTeams = 4;
-        await client.from('tournaments').update({ max_teams: 4 }).eq('id', currentTournamentId);
-        currentTournament.max_teams = 4;
+    } else if (targetTeams <= 8 && currentTournament.max_teams > 8) {
+        effectiveMaxTeams = 8;
+    } else if (targetTeams <= 16 && currentTournament.max_teams > 16) {
+        effectiveMaxTeams = 16;
+    }
+
+    if (effectiveMaxTeams !== currentTournament.max_teams) {
+        await client.from('tournaments').update({ max_teams: effectiveMaxTeams }).eq('id', currentTournamentId);
+        currentTournament.max_teams = effectiveMaxTeams;
     }
 
     const shuffledTeams = [...teams].sort(() => Math.random() - 0.5);
@@ -44,8 +50,9 @@ async function startTournament(overrideTeamsCount) {
         matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 3, round: 2, match_type: "🏆 FINALE", team_a_id: null, team_b_id: null, status: 'waiting' });
         matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 4, round: 2, match_type: "🥉 3./4. PLADS", team_a_id: null, team_b_id: null, status: 'waiting' });
     } else {
-        // 8 Hold (Standard): 3 runder (12 kampe totalt)
-        for (let i = 0; i < 4; i++) {
+        // 8, 16 eller 32 Hold: Opret Runde 1 kampe dynamisk
+        const r1MatchesCount = effectiveMaxTeams / 2;
+        for (let i = 0; i < r1MatchesCount; i++) {
             matchesToCreate.push({
                 tournament_id: currentTournamentId,
                 match_number: i + 1,
@@ -56,15 +63,43 @@ async function startTournament(overrideTeamsCount) {
                 status: 'ready'
             });
         }
-        matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 5, round: 2, match_type: "🚀 Semifinale 1", status: 'waiting' });
-        matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 6, round: 2, match_type: "🚀 Semifinale 2", status: 'waiting' });
-        matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 7, round: 2, match_type: "🔄 Taber-semi 1", status: 'waiting' });
-        matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 8, round: 2, match_type: "🔄 Taber-semi 2", status: 'waiting' });
 
-        matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 9, round: 3, match_type: "🏆 FINALE", status: 'waiting' });
-        matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 10, round: 3, match_type: "🥉 3./4. PLADS", status: 'waiting' });
-        matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 11, round: 3, match_type: "🏅 5./6. PLADS", status: 'waiting' });
-        matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 12, round: 3, match_type: "🎖️ 7./8. PLADS", status: 'waiting' });
+        if (effectiveMaxTeams === 8) {
+            matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 5, round: 2, match_type: "🚀 Semifinale 1", status: 'waiting' });
+            matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 6, round: 2, match_type: "🚀 Semifinale 2", status: 'waiting' });
+            matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 7, round: 2, match_type: "🔄 Taber-semi 1", status: 'waiting' });
+            matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 8, round: 2, match_type: "🔄 Taber-semi 2", status: 'waiting' });
+
+            matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 9, round: 3, match_type: "🏆 FINALE", status: 'waiting' });
+            matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 10, round: 3, match_type: "🥉 3./4. PLADS", status: 'waiting' });
+            matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 11, round: 3, match_type: "🏅 5./6. PLADS", status: 'waiting' });
+            matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 12, round: 3, match_type: "🎖️ 7./8. PLADS", status: 'waiting' });
+        } else {
+            // 16 eller 32 Hold: Opret efterfølgende runder dynamisk
+            let matchIdx = r1MatchesCount + 1;
+            let currentRound = 2;
+            let currentNumMatches = r1MatchesCount;
+
+            while (currentNumMatches > 1) {
+                for (let i = 0; i < currentNumMatches; i++) {
+                    let label = `Runde ${currentRound} - Kamp ${i + 1}`;
+                    if (currentNumMatches === 8) label = `🔥 Kvartfinale ${i + 1}`;
+                    if (currentNumMatches === 4) label = `🚀 Semifinale ${i + 1}`;
+                    if (currentNumMatches === 2 && i === 0) label = `🏆 FINALE`;
+                    if (currentNumMatches === 2 && i === 1) label = `🥉 3./4. PLADS`;
+
+                    matchesToCreate.push({
+                        tournament_id: currentTournamentId,
+                        match_number: matchIdx++,
+                        round: currentRound,
+                        match_type: label,
+                        status: 'waiting'
+                    });
+                }
+                currentNumMatches /= 2;
+                currentRound++;
+            }
+        }
     }
 
     await client.from('matches').insert(matchesToCreate);
