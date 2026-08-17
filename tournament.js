@@ -106,6 +106,7 @@ async function startTournament(overrideTeamsCount) {
     await client.from('tournaments').update({ status: 'matches' }).eq('id', currentTournamentId);
     currentTournament.status = 'matches';
 
+    if (typeof updateNavVisibility === 'function') updateNavVisibility();
     switchTab('matches');
     fetchMatches();
 }

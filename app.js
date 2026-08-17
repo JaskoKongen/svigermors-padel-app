@@ -637,7 +637,6 @@ function setupTournamentRealtime(tId) {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'teams', filter: `tournament_id=eq.${tId}` }, () => fetchTeams())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'matches', filter: `tournament_id=eq.${tId}` }, () => fetchMatches())
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tournaments', filter: `id=eq.${tId}` }, async (payload) => {
-            const oldStatus = currentTournament ? currentTournament.status : null;
             currentTournament = payload.new;
 
             const badge = document.getElementById('t-detail-status-badge');
@@ -646,8 +645,9 @@ function setupTournamentRealtime(tId) {
                 badge.innerText = statusText;
             }
 
-            if (oldStatus === 'registration' && currentTournament.status === 'matches') {
-                updateNavVisibility();
+            updateNavVisibility();
+
+            if (currentTournament.status === 'matches') {
                 switchTab('matches');
                 fetchMatches();
             }
