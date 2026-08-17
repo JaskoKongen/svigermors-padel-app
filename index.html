@@ -90,15 +90,12 @@
 
         <!-- 2. MY TOURNAMENTS VIEW (DINE TURNERINGER) -->
         <div id="my-tournaments-view" style="display:none;">
-            <div class="action-buttons-row" style="display: flex; gap: 8px; margin-bottom: 14px;">
+            <div class="action-buttons-row" style="display: flex; gap: 8px; margin-bottom: 16px;">
                 <button class="btn-primary" onclick="openCreateTournamentModal()" style="flex: 1; padding: 12px 8px; font-size: 13px;">➕ Opret Turnering</button>
                 <button class="btn-secondary" onclick="openJoinTournamentModal()" style="flex: 1; padding: 12px 8px; font-size: 13px;">🔍 Deltag i Turnering</button>
             </div>
 
-            <!-- Søgefelt til dine turneringer -->
-            <input type="text" id="my-tournaments-search" oninput="filterMyTournaments()" placeholder="🔍 Søg i turneringer..." style="margin-bottom: 14px;">
-
-            <h3 style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 10px;">Turneringer</h3>
+            <h3 style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 10px;">Dine Turneringer</h3>
             <div id="my-tournaments-list">
                 <!-- Dynamisk liste over turneringer -->
             </div>

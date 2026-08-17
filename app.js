@@ -439,10 +439,6 @@ function toggleFinishedTournaments() {
     renderMyTournaments();
 }
 
-function filterMyTournaments() {
-    renderMyTournaments();
-}
-
 async function fetchMyTournaments() {
     const listDiv = document.getElementById('my-tournaments-list');
     if (!listDiv) return;
@@ -486,19 +482,8 @@ function renderMyTournaments() {
         return;
     }
 
-    const query = (document.getElementById('my-tournaments-search')?.value || '').toLowerCase().trim();
-
-    let filtered = cachedMyTournaments;
-    if (query) {
-        filtered = cachedMyTournaments.filter(t => 
-            t.name.toLowerCase().includes(query) ||
-            t.admin_username.toLowerCase().includes(query) ||
-            (t.admin_contact && t.admin_contact.toLowerCase().includes(query))
-        );
-    }
-
-    const activeTournaments = filtered.filter(t => t.status !== 'finished');
-    const finishedTournaments = filtered.filter(t => t.status === 'finished');
+    const activeTournaments = cachedMyTournaments.filter(t => t.status !== 'finished');
+    const finishedTournaments = cachedMyTournaments.filter(t => t.status === 'finished');
 
     const renderCard = (t) => {
         const isAdmin = t.admin_username.toLowerCase() === currentUser.toLowerCase();
@@ -535,7 +520,7 @@ function renderMyTournaments() {
     if (activeTournaments.length > 0) {
         activeTournaments.forEach(t => { html += renderCard(t); });
     } else {
-        html += `<div class="card" style="text-align:center; padding:20px; color:var(--text-muted); margin-bottom:10px;">${query ? 'Ingen aktive turneringer matchede din søgning. 🔍' : 'Ingen aktive turneringer i øjeblikket.'}</div>`;
+        html += `<div class="card" style="text-align:center; padding:20px; color:var(--text-muted); margin-bottom:10px;">Ingen aktive turneringer i øjeblikket.</div>`;
     }
 
     if (finishedTournaments.length > 0) {
