@@ -90,14 +90,17 @@
 
         <!-- 2. MY TOURNAMENTS VIEW (DINE TURNERINGER) -->
         <div id="my-tournaments-view" style="display:none;">
-            <div class="action-buttons-row" style="display: flex; gap: 8px; margin-bottom: 16px;">
+            <div class="action-buttons-row" style="display: flex; gap: 8px; margin-bottom: 14px;">
                 <button class="btn-primary" onclick="openCreateTournamentModal()" style="flex: 1; padding: 12px 8px; font-size: 13px;">➕ Opret Turnering</button>
                 <button class="btn-secondary" onclick="openJoinTournamentModal()" style="flex: 1; padding: 12px 8px; font-size: 13px;">🔍 Deltag i Turnering</button>
             </div>
 
-            <h3 style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 10px;">Dine Turneringer</h3>
+            <!-- Søgefelt til dine turneringer -->
+            <input type="text" id="my-tournaments-search" oninput="filterMyTournaments()" placeholder="🔍 Søg i turneringer..." style="margin-bottom: 14px;">
+
+            <h3 style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 10px;">Turneringer</h3>
             <div id="my-tournaments-list">
-                <!-- Dynamisk liste over turneringer man er med i -->
+                <!-- Dynamisk liste over turneringer -->
             </div>
         </div>
 
@@ -205,8 +208,10 @@
     <div id="join-tournament-modal" class="modal">
         <div class="modal-content" style="max-width: 480px;">
             <h3 style="margin-top:0; font-size: 18px;">Åbne Turneringer 🔍</h3>
-            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">Vælg en turnering med ledige pladser for at deltage.</p>
-            
+            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Søg efter en turnering eller vælg fra listen for at deltage.</p>
+
+            <input type="text" id="join-search-input" oninput="filterJoinTournaments()" placeholder="🔍 Søg efter turneringsnavn eller admin..." style="margin-bottom: 12px;">
+
             <div id="open-tournaments-list" style="max-height: 300px; overflow-y: auto; margin-bottom: 14px;">
                 <!-- Liste over åbne turneringer -->
             </div>

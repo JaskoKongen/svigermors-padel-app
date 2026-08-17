@@ -430,11 +430,17 @@ async function goToMyTournaments() {
     await fetchMyTournaments();
 }
 
+let cachedMyTournaments = [];
+let cachedMyTournamentIds = [];
 let showFinishedTournaments = false;
 
 function toggleFinishedTournaments() {
     showFinishedTournaments = !showFinishedTournaments;
-    fetchMyTournaments();
+    renderMyTournaments();
+}
+
+function filterMyTournaments() {
+    renderMyTournaments();
 }
 
 async function fetchMyTournaments() {
@@ -446,7 +452,7 @@ async function fetchMyTournaments() {
         .select('tournament_id')
         .or(`player1.ilike.${currentUser},player2.ilike.${currentUser}`);
 
-    const myTournamentIds = myTeams ? [...new Set(myTeams.map(t => t.tournament_id))] : [];
+    cachedMyTournamentIds = myTeams ? [...new Set(myTeams.map(t => t.tournament_id))] : [];
 
     const { data: tournaments, error } = await client
         .from('tournaments')
@@ -459,7 +465,15 @@ async function fetchMyTournaments() {
         return;
     }
 
-    if (!tournaments || tournaments.length === 0) {
+    cachedMyTournaments = tournaments || [];
+    renderMyTournaments();
+}
+
+function renderMyTournaments() {
+    const listDiv = document.getElementById('my-tournaments-list');
+    if (!listDiv) return;
+
+    if (cachedMyTournaments.length === 0) {
         listDiv.innerHTML = `
             <div class="card" style="text-align: center; padding: 30px 20px;">
                 <p style="font-size: 18px; margin-bottom: 8px;">Ingen turneringer endnu 🎾</p>
@@ -472,12 +486,23 @@ async function fetchMyTournaments() {
         return;
     }
 
-    const activeTournaments = tournaments.filter(t => t.status !== 'finished');
-    const finishedTournaments = tournaments.filter(t => t.status === 'finished');
+    const query = (document.getElementById('my-tournaments-search')?.value || '').toLowerCase().trim();
+
+    let filtered = cachedMyTournaments;
+    if (query) {
+        filtered = cachedMyTournaments.filter(t => 
+            t.name.toLowerCase().includes(query) ||
+            t.admin_username.toLowerCase().includes(query) ||
+            (t.admin_contact && t.admin_contact.toLowerCase().includes(query))
+        );
+    }
+
+    const activeTournaments = filtered.filter(t => t.status !== 'finished');
+    const finishedTournaments = filtered.filter(t => t.status === 'finished');
 
     const renderCard = (t) => {
         const isAdmin = t.admin_username.toLowerCase() === currentUser.toLowerCase();
-        const isParticipant = myTournamentIds.includes(t.id);
+        const isParticipant = cachedMyTournamentIds.includes(t.id);
         const formatBadgeClass = t.format === 'single' ? 'badge-single' : 'badge-double';
         const formatText = t.format === 'single' ? 'Single' : 'Double';
 
@@ -510,7 +535,7 @@ async function fetchMyTournaments() {
     if (activeTournaments.length > 0) {
         activeTournaments.forEach(t => { html += renderCard(t); });
     } else {
-        html += `<div class="card" style="text-align:center; padding:20px; color:var(--text-muted); margin-bottom:10px;">Ingen aktive turneringer i øjeblikket.</div>`;
+        html += `<div class="card" style="text-align:center; padding:20px; color:var(--text-muted); margin-bottom:10px;">${query ? 'Ingen aktive turneringer matchede din søgning. 🔍' : 'Ingen aktive turneringer i øjeblikket.'}</div>`;
     }
 
     if (finishedTournaments.length > 0) {
@@ -660,10 +685,15 @@ async function submitCreateTournament() {
     openTournament(newT.id);
 }
 
+let cachedOpenTournaments = [];
+
 async function openJoinTournamentModal() {
     document.getElementById('join-tournament-modal').style.display = 'flex';
+    const searchInput = document.getElementById('join-search-input');
+    if (searchInput) searchInput.value = '';
+
     const listDiv = document.getElementById('open-tournaments-list');
-    listDiv.innerHTML = '<p style="color:var(--text-muted); text-align:center;">Henter åbne turneringer...</p>';
+    listDiv.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding:20px;">Henter åbne turneringer...</p>';
 
     const { data: openTs } = await client
         .from('tournaments')
@@ -672,39 +702,79 @@ async function openJoinTournamentModal() {
         .order('created_at', { ascending: false });
 
     if (!openTs || openTs.length === 0) {
-        listDiv.innerHTML = '<p style="color:var(--text-muted); text-align:center;">Der er i øjeblikket ingen åbne turneringer med ledige pladser.</p>';
+        cachedOpenTournaments = [];
+        listDiv.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding:20px;">Der er i øjeblikket ingen åbne turneringer med ledige pladser.</p>';
         return;
     }
 
-    listDiv.innerHTML = '';
+    cachedOpenTournaments = [];
     for (const t of openTs) {
         const { data: teams } = await client.from('teams').select('*').eq('tournament_id', t.id);
         let filledPlayers = 0;
         let totalCapacity = t.format === 'single' ? t.max_teams : t.max_teams * 2;
-        teams.forEach(tm => {
-            if (tm.player1) filledPlayers++;
-            if (tm.player2) filledPlayers++;
+        if (teams) {
+            teams.forEach(tm => {
+                if (tm.player1) filledPlayers++;
+                if (tm.player2) filledPlayers++;
+            });
+        }
+        cachedOpenTournaments.push({
+            ...t,
+            filledPlayers,
+            totalCapacity
         });
+    }
 
+    renderFilteredJoinTournaments(cachedOpenTournaments);
+}
+
+function filterJoinTournaments() {
+    const query = (document.getElementById('join-search-input')?.value || '').toLowerCase().trim();
+    if (!query) {
+        renderFilteredJoinTournaments(cachedOpenTournaments);
+        return;
+    }
+
+    const filtered = cachedOpenTournaments.filter(t => 
+        t.name.toLowerCase().includes(query) || 
+        t.admin_username.toLowerCase().includes(query) ||
+        (t.admin_contact && t.admin_contact.toLowerCase().includes(query))
+    );
+
+    renderFilteredJoinTournaments(filtered);
+}
+
+function renderFilteredJoinTournaments(tournamentsList) {
+    const listDiv = document.getElementById('open-tournaments-list');
+    if (!listDiv) return;
+
+    if (!tournamentsList || tournamentsList.length === 0) {
+        listDiv.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding:20px;">Ingen turneringer matchede din søgning. 🔍</p>';
+        return;
+    }
+
+    listDiv.innerHTML = '';
+    tournamentsList.forEach(t => {
         const card = document.createElement('div');
         card.className = 'team-card';
         card.style.flexDirection = 'column';
         card.style.alignItems = 'stretch';
         card.style.gap = '10px';
+        card.style.marginBottom = '10px';
 
         card.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center;">
-                <strong>${t.name}</strong>
+                <strong style="font-size:15px; color:var(--text-main);">${t.name}</strong>
                 <span class="badge ${t.format === 'single' ? 'badge-single' : 'badge-double'}">${t.format.toUpperCase()} (${t.max_teams} Hold)</span>
             </div>
-            <div style="font-size:13px; color:var(--text-muted);">
+            <div style="font-size:12px; color:var(--text-muted);">
                 👤 Admin: ${t.admin_username} (📞 ${t.admin_contact})<br>
-                📊 Pladser: ${filledPlayers} / ${totalCapacity} spillere
+                📊 Pladser: ${t.filledPlayers} / ${t.totalCapacity} spillere
             </div>
             <button class="btn-primary btn-sm" onclick="closeModal('join-tournament-modal'); openTournament('${t.id}')">Se / Deltag →</button>
         `;
         listDiv.appendChild(card);
-    }
+    });
 }
 
 // Initial start
