@@ -150,7 +150,11 @@ async function fetchMatches() {
             const isMyMatch = (teamA && (isPlayerIn(teamA.player1) || isPlayerIn(teamA.player2))) ||
                               (teamB && (isPlayerIn(teamB.player1) || isPlayerIn(teamB.player2)));
 
-            const canEdit = isMyMatch && teamA && teamB;
+            // Tjek om der findes afviklede kampe i en senere runde (større rundenummer)
+            const isLaterRoundPlayed = matches.some(m => Number(m.round) > Number(match.round) && m.status === 'finished');
+
+            // Kampen kan kun redigeres hvis det er spillerens egen kamp og senere runder IKKE er spillet
+            const canEdit = isMyMatch && teamA && teamB && !isLaterRoundPlayed;
 
             const card = document.createElement('div');
             card.className = isMyMatch ? 'card my-match' : 'card';
@@ -161,8 +165,12 @@ async function fetchMatches() {
                 card.onclick = () => openScoreModal(match);
                 card.classList.add('card-interactive');
             } else {
-                card.style.cursor = 'default';
-                card.style.opacity = '0.85';
+                card.style.cursor = isMyMatch && isLaterRoundPlayed ? 'pointer' : 'default';
+                card.style.opacity = !isMyMatch || isLaterRoundPlayed ? '0.85' : '1';
+
+                if (isMyMatch && isLaterRoundPlayed) {
+                    card.onclick = () => showCustomAlert("Denne kamp er låst for redigering, fordi der allerede er indtastet resultater i senere runder.", "Kampen er Låst 🔒", "🔒");
+                }
             }
 
             const formatPlayerNames = (t) => {
@@ -178,13 +186,22 @@ async function fetchMatches() {
                 ? `${match.score_a} - ${match.score_b}`
                 : (canEdit ? 'Indtast score ✎' : 'Venter');
 
+            let badgeHtml = '';
+            if (isMyMatch && isLaterRoundPlayed) {
+                badgeHtml = '<span style="font-size:11px; color:var(--text-muted); font-weight:700;">LÅST 🔒</span>';
+            } else if (canEdit && match.status !== 'finished') {
+                badgeHtml = '<span style="font-size:11px; color:var(--accent-green-bright); font-weight:700;">DIN KAMP ✎</span>';
+            } else if (canEdit && match.status === 'finished') {
+                badgeHtml = '<span style="font-size:11px; color:var(--accent-blue); font-weight:700;">DIN KAMP ✎</span>';
+            }
+
             card.innerHTML = `
                 <div style="display:flex; flex-direction:column; gap:8px;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <span style="color:var(--accent-blue); font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; white-space:nowrap;">
                             ${match.match_type || 'Kamp ' + match.match_number}
                         </span>
-                        ${canEdit && match.status !== 'finished' ? '<span style="font-size:11px; color:var(--accent-green-bright); font-weight:700;">DIN KAMP ✎</span>' : ''}
+                        ${badgeHtml}
                     </div>
                     <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
                         <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:4px;">
