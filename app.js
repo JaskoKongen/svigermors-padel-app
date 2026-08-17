@@ -418,16 +418,16 @@ function updateNavVisibility() {
     }
 
     if (currentTournament.status === 'registration') {
-        // I tilmeldingsfasen: Vis kun Hold/Deltagere tab, skjul kampe og stilling da de ikke er startet
+        // I tilmeldingsfasen: Vis KUN Hold/Tilmelding (Skjul Kampe & Stilling)
         if (matchesTab) matchesTab.style.display = 'none';
         if (leaderboardTab) leaderboardTab.style.display = 'none';
         if (teamsTab) teamsTab.style.display = 'flex';
         if (nav) nav.style.display = 'flex';
     } else {
-        // Når turneringen er i gang eller færdig: Vis alle 3 faner (Kampe, Stilling, Hold)
+        // Når turneringen er i gang/afsluttet: Vis KUN Kampe & Stilling (Skjul Hold da tilmelding er låst)
         if (matchesTab) matchesTab.style.display = 'flex';
         if (leaderboardTab) leaderboardTab.style.display = 'flex';
-        if (teamsTab) teamsTab.style.display = 'flex';
+        if (teamsTab) teamsTab.style.display = 'none';
         if (nav) nav.style.display = 'flex';
     }
 }
