@@ -1,4 +1,4 @@
-const CACHE_NAME = 'svigermors-padel-v1.0.4';
+const CACHE_NAME = 'svigermors-padel-v1.0.5';
 const ASSETS_TO_CACHE = [
     './',
     'index.html',
@@ -11,7 +11,9 @@ const ASSETS_TO_CACHE = [
     './manifest.json',
     './icon-192.png',
     './icon-512.png',
-    './apple-touch-icon.png'
+    './apple-touch-icon.png',
+    './icon-monochrome.png',
+    './icon-monochrome-192.png'
 ];
 
 // Installation: Cache core assets and skip waiting
