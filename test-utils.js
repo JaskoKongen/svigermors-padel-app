@@ -18,13 +18,19 @@ const PadelTest = {
      * 1. Rydder ALT data i Supabase databasen (tournaments, teams, matches)
      */
     async clearAllData() {
-        console.log("%c🧹 Rydder alle turneringer, hold og kampe fra databasen...", "color: #ef4444; font-weight: bold; font-size: 14px;");
+        console.log("%c🧹 Rydder ALT data i databasen (matches, teams, tournaments, users)...", "color: #ef4444; font-weight: bold; font-size: 14px;");
         
         await client.from('matches').delete().neq('id', '00000000-0000-0000-0000-000000000000');
         await client.from('teams').delete().neq('id', '00000000-0000-0000-0000-000000000000');
         await client.from('tournaments').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await client.from('users').delete().neq('id', '00000000-0000-0000-0000-000000000000');
 
-        console.log("%c✅ Alt data i databasen er slettet!", "color: #10b981; font-weight: bold;");
+        // Genopret den nuværende loggede ind bruger i databasen så sessionen bevares
+        if (currentUser) {
+            await client.from('users').insert({ username: currentUser });
+        }
+
+        console.log("%c✅ Alt data og registrerede navne er ryddet fra databasen!", "color: #10b981; font-weight: bold;");
         if (typeof goToMyTournaments === 'function') goToMyTournaments();
     },
 
