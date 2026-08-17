@@ -594,10 +594,14 @@ async function openTournament(tournamentId) {
     let statusText = t.status === 'registration' ? 'Tilmeldingsfase' : (t.status === 'matches' ? 'Kampprogram i gang 🎾' : 'Afsluttet 🏆');
     document.getElementById('t-detail-status-badge').innerText = statusText;
 
+    const contactHtml = (t.admin_contact && t.admin_contact.trim()) 
+        ? ` &nbsp;|&nbsp; 📞 <strong>Kontakt:</strong> ${t.admin_contact.trim()}` 
+        : '';
+
     document.getElementById('t-detail-admin').innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
             <div>
-                👤 <strong>Admin:</strong> ${t.admin_username} &nbsp;|&nbsp; 📞 <strong>Kontakt:</strong> ${t.admin_contact}
+                👤 <strong>Admin:</strong> ${t.admin_username}${contactHtml}
             </div>
             ${isAdmin ? `<button class="btn-danger btn-sm" onclick="deleteTournament('${t.id}')">🗑️ Slet Turnering</button>` : ''}
         </div>
@@ -672,14 +676,14 @@ async function submitCreateTournament() {
     const format = document.getElementById('create-t-format').value;
     const maxTeams = parseInt(document.getElementById('create-t-max-teams').value);
 
-    if (!name || !contact) {
-        return showCustomAlert("Udfyld venligst både turneringsnavn og kontakt-oplysninger.", "Manglende oplysninger", "⚠️");
+    if (!name) {
+        return showCustomAlert("Udfyld venligst et turneringsnavn.", "Manglende oplysninger ⚠️", "⚠️");
     }
 
     const { data: newT, error } = await client.from('tournaments').insert({
         name: name,
         admin_username: currentUser,
-        admin_contact: contact,
+        admin_contact: contact || null,
         format: format,
         max_teams: maxTeams,
         status: 'registration'
@@ -783,13 +787,15 @@ function renderFilteredJoinTournaments(tournamentsList) {
         card.style.gap = '10px';
         card.style.marginBottom = '10px';
 
+        const contactText = (t.admin_contact && t.admin_contact.trim()) ? ` (📞 ${t.admin_contact.trim()})` : '';
+
         card.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <strong style="font-size:15px; color:var(--text-main);">${t.name}</strong>
                 <span class="badge ${t.format === 'single' ? 'badge-single' : 'badge-double'}">${t.format.toUpperCase()} (${t.max_teams} Hold)</span>
             </div>
             <div style="font-size:12px; color:var(--text-muted);">
-                👤 Admin: ${t.admin_username} (📞 ${t.admin_contact})<br>
+                👤 Admin: ${t.admin_username}${contactText}<br>
                 📊 Pladser: ${t.filledPlayers} / ${t.totalCapacity} spillere
             </div>
             <button class="btn-primary btn-sm" onclick="closeModal('join-tournament-modal'); openTournament('${t.id}')">Se / Deltag →</button>
