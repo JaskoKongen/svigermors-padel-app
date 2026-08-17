@@ -398,8 +398,38 @@ function showView(viewId) {
         const el = document.getElementById(id);
         if (el) el.style.display = (id === viewId) ? 'block' : 'none';
     });
+    if (viewId === 'tournament-view') {
+        updateNavVisibility();
+    } else {
+        const nav = document.getElementById('app-nav');
+        if (nav) nav.style.display = 'none';
+    }
+}
+
+function updateNavVisibility() {
     const nav = document.getElementById('app-nav');
-    if (nav) nav.style.display = (viewId === 'tournament-view') ? 'flex' : 'none';
+    const matchesTab = document.getElementById('nav-matches');
+    const leaderboardTab = document.getElementById('nav-leaderboard');
+    const teamsTab = document.getElementById('nav-teams');
+
+    if (!currentTournament || currentTournamentId === null) {
+        if (nav) nav.style.display = 'none';
+        return;
+    }
+
+    if (currentTournament.status === 'registration') {
+        // I tilmeldingsfasen: Vis kun Hold/Deltagere tab, skjul kampe og stilling da de ikke er startet
+        if (matchesTab) matchesTab.style.display = 'none';
+        if (leaderboardTab) leaderboardTab.style.display = 'none';
+        if (teamsTab) teamsTab.style.display = 'flex';
+        if (nav) nav.style.display = 'flex';
+    } else {
+        // Når turneringen er i gang eller færdig: Vis alle 3 faner (Kampe, Stilling, Hold)
+        if (matchesTab) matchesTab.style.display = 'flex';
+        if (leaderboardTab) leaderboardTab.style.display = 'flex';
+        if (teamsTab) teamsTab.style.display = 'flex';
+        if (nav) nav.style.display = 'flex';
+    }
 }
 
 function switchTab(tab) {
@@ -411,9 +441,13 @@ function switchTab(tab) {
     document.getElementById('leaderboard-section').style.display = isLeaderboard ? 'block' : 'none';
     document.getElementById('registration-section').style.display = isRegistration ? 'block' : 'none';
 
-    document.getElementById('nav-matches').classList.toggle('active', isMatches);
-    document.getElementById('nav-leaderboard').classList.toggle('active', isLeaderboard);
-    document.getElementById('nav-teams').classList.toggle('active', isRegistration);
+    const matchesNav = document.getElementById('nav-matches');
+    const leaderboardNav = document.getElementById('nav-leaderboard');
+    const teamsNav = document.getElementById('nav-teams');
+
+    if (matchesNav) matchesNav.classList.toggle('active', isMatches);
+    if (leaderboardNav) leaderboardNav.classList.toggle('active', isLeaderboard);
+    if (teamsNav) teamsNav.classList.toggle('active', isRegistration);
 }
 
 // --------------------------------------------------------------------------
@@ -576,6 +610,7 @@ async function openTournament(tournamentId) {
     } else {
         switchTab('matches');
     }
+    updateNavVisibility();
 
     fetchTeams();
     fetchMatches();
@@ -612,6 +647,7 @@ function setupTournamentRealtime(tId) {
             }
 
             if (oldStatus === 'registration' && currentTournament.status === 'matches') {
+                updateNavVisibility();
                 switchTab('matches');
                 fetchMatches();
             }

@@ -153,21 +153,17 @@
 
     <!-- Navigation Bar i bunden (når man er inde i en turnering) -->
     <div id="app-nav" class="bottom-nav" style="display:none;">
-        <div class="nav-item" id="nav-my-tournaments" onclick="goToMyTournaments()">
-            <span class="icon">🏠</span>
-            <span>TURNERINGER</span>
+        <div class="nav-item" id="nav-teams" onclick="switchTab('registration')">
+            <span class="icon">👥</span>
+            <span>HOLD</span>
         </div>
-        <div class="nav-item active" id="nav-matches" onclick="switchTab('matches')">
+        <div class="nav-item" id="nav-matches" onclick="switchTab('matches')">
             <span class="icon">🎾</span>
             <span>KAMPE</span>
         </div>
         <div class="nav-item" id="nav-leaderboard" onclick="switchTab('leaderboard')">
             <span class="icon">🏆</span>
             <span>STILLING</span>
-        </div>
-        <div class="nav-item" id="nav-teams" onclick="switchTab('registration')">
-            <span class="icon">👥</span>
-            <span>HOLD</span>
         </div>
     </div>
 
