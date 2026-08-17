@@ -35,7 +35,17 @@ async function startTournament(overrideTeamsCount) {
         currentTournament.max_teams = effectiveMaxTeams;
     }
 
-    const sortedTeams = [...teams].sort((a, b) => a.team_number - b.team_number);
+    // Tjek om turneringen er en gentaget/seedet udgave (fx indeholder #2, #3 i navnet)
+    const isRepeated = /[\(\#](Ny|v?\d+)[\)]?/i.test(currentTournament.name || '');
+
+    let sortedTeams = [];
+    if (isRepeated) {
+        // Gentaget turnering: Seedet lodtrækning baseret på forrige placeringsstigning (Hold 1 = Seed 1 osv.)
+        sortedTeams = [...teams].sort((a, b) => a.team_number - b.team_number);
+    } else {
+        // Helt ny turnering: 100% Tilfældig lodtrækning blandt holdene!
+        sortedTeams = [...teams].sort(() => Math.random() - 0.5);
+    }
 
     const matchesToCreate = [];
 
