@@ -1,4 +1,4 @@
-const CACHE_NAME = 'svigermors-padel-v1.0.3';
+const CACHE_NAME = 'svigermors-padel-v1.0.4';
 const ASSETS_TO_CACHE = [
     './',
     'index.html',
