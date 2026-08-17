@@ -683,7 +683,7 @@ async function submitCreateTournament() {
     const { data: newT, error } = await client.from('tournaments').insert({
         name: name,
         admin_username: currentUser,
-        admin_contact: contact || null,
+        admin_contact: contact || '',
         format: format,
         max_teams: maxTeams,
         status: 'registration'

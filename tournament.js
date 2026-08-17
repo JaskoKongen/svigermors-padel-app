@@ -607,7 +607,7 @@ async function restartTournament() {
     const { data: newT, error } = await client.from('tournaments').insert({
         name: newName,
         admin_username: currentUser,
-        admin_contact: currentTournament.admin_contact,
+        admin_contact: currentTournament.admin_contact || '',
         format: currentTournament.format,
         max_teams: currentTournament.max_teams,
         status: 'registration'
