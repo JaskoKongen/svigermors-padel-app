@@ -513,6 +513,20 @@ async function fetchMyTournaments() {
     renderMyTournaments();
 }
 
+function parseTournamentAdminInfo(adminContactStr) {
+    if (!adminContactStr) return { contact: '', location: '' };
+    try {
+        if (typeof adminContactStr === 'string' && adminContactStr.trim().startsWith('{') && adminContactStr.trim().endsWith('}')) {
+            const parsed = JSON.parse(adminContactStr);
+            return {
+                contact: (parsed.contact || '').trim(),
+                location: (parsed.location || '').trim()
+            };
+        }
+    } catch (e) {}
+    return { contact: (adminContactStr || '').trim(), location: '' };
+}
+
 function renderMyTournaments() {
     const listDiv = document.getElementById('my-tournaments-list');
     if (!listDiv) return;
@@ -550,6 +564,9 @@ function renderMyTournaments() {
         if (t.status === 'matches') statusText = "I gang 🎾";
         if (t.status === 'finished') statusText = "Afsluttet 🏆";
 
+        const { location, contact } = parseTournamentAdminInfo(t.admin_contact);
+        const locationText = location ? ` | 📍 ${location}` : '';
+
         return `
             <div class="card card-interactive" onclick="openTournament('${t.id}')" style="margin-bottom:10px;">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
@@ -564,7 +581,7 @@ function renderMyTournaments() {
                     <div style="font-size: 18px; color: var(--text-muted); flex-shrink:0; align-self:center;">→</div>
                 </div>
                 <div style="margin-top:12px; padding-top:8px; border-top:1px solid var(--border-card); font-size:12px; color:var(--text-muted); display:flex; justify-content:space-between; align-items:center; gap:8px;">
-                    <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">Admin: ${t.admin_username} | ${t.max_teams} hold</span>
+                    <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;" title="Admin: ${t.admin_username} | ${t.max_teams} hold${locationText}">Admin: ${t.admin_username} | ${t.max_teams} hold${locationText}</span>
                     ${isAdmin ? `<button class="btn-danger btn-sm" style="padding:4px 10px; font-size:11px;" onclick="event.stopPropagation(); deleteTournament('${t.id}')">🗑️ Slet</button>` : ''}
                 </div>
             </div>`;
@@ -623,16 +640,24 @@ async function openTournament(tournamentId) {
     let statusText = t.status === 'registration' ? 'Tilmeldingsfase' : (t.status === 'matches' ? 'Kampprogram i gang 🎾' : 'Afsluttet 🏆');
     document.getElementById('t-detail-status-badge').innerText = statusText;
 
-    const contactHtml = (t.admin_contact && t.admin_contact.trim()) 
-        ? ` &nbsp;|&nbsp; 📞 <strong>Kontakt:</strong> ${t.admin_contact.trim()}` 
+    const { location, contact } = parseTournamentAdminInfo(t.admin_contact);
+
+    const locationBadge = location 
+        ? `<span style="display:inline-flex; align-items:center; gap:3px; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${location}">📍 ${location}</span>` 
+        : '';
+
+    const contactBadge = contact 
+        ? `<span style="display:inline-flex; align-items:center; gap:3px; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${contact}">📞 ${contact}</span>` 
         : '';
 
     document.getElementById('t-detail-admin').innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-            <div>
-                👤 <strong>Admin:</strong> ${t.admin_username}${contactHtml}
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <div style="display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; font-size:12px; color:var(--text-muted);">
+                <span>👤 <strong>Admin:</strong> ${t.admin_username}</span>
+                ${locationBadge}
+                ${contactBadge}
             </div>
-            ${isAdmin ? `<button class="btn-danger btn-sm" onclick="deleteTournament('${t.id}')">🗑️ Slet Turnering</button>` : ''}
+            ${isAdmin ? `<button class="btn-danger btn-sm" style="padding:4px 8px; font-size:11px;" onclick="deleteTournament('${t.id}')">🗑️ Slet Turnering</button>` : ''}
         </div>
     `;
 
@@ -695,12 +720,15 @@ function setupTournamentRealtime(tId) {
 // Modal Handlers
 function openCreateTournamentModal() {
     document.getElementById('create-t-name').value = '';
+    const locInput = document.getElementById('create-t-location');
+    if (locInput) locInput.value = '';
     document.getElementById('create-t-contact').value = '';
     document.getElementById('create-tournament-modal').style.display = 'flex';
 }
 
 async function submitCreateTournament() {
     const name = document.getElementById('create-t-name').value.trim();
+    const location = (document.getElementById('create-t-location')?.value || '').trim();
     const contact = document.getElementById('create-t-contact').value.trim();
     const format = document.getElementById('create-t-format').value;
     const maxTeams = parseInt(document.getElementById('create-t-max-teams').value);
@@ -724,10 +752,15 @@ async function submitCreateTournament() {
         return showCustomAlert(`Der findes allerede en turnering med navnet "${name}". Vælg venligst et andet unikt navn!`, "Optaget Turneringsnavn ⚠️", "⚠️");
     }
 
+    let adminContactPayload = '';
+    if (location || contact) {
+        adminContactPayload = JSON.stringify({ location, contact });
+    }
+
     const { data: newT, error } = await client.from('tournaments').insert({
         name: name,
         admin_username: currentUser,
-        admin_contact: contact || '',
+        admin_contact: adminContactPayload,
         format: format,
         max_teams: maxTeams,
         status: 'registration'
@@ -804,11 +837,13 @@ function filterJoinTournaments() {
         return;
     }
 
-    const filtered = cachedOpenTournaments.filter(t => 
-        t.name.toLowerCase().includes(query) || 
-        t.admin_username.toLowerCase().includes(query) ||
-        (t.admin_contact && t.admin_contact.toLowerCase().includes(query))
-    );
+    const filtered = cachedOpenTournaments.filter(t => {
+        const { location, contact } = parseTournamentAdminInfo(t.admin_contact);
+        return t.name.toLowerCase().includes(query) || 
+               t.admin_username.toLowerCase().includes(query) ||
+               location.toLowerCase().includes(query) ||
+               contact.toLowerCase().includes(query);
+    });
 
     renderFilteredJoinTournaments(filtered);
 }
@@ -828,19 +863,21 @@ function renderFilteredJoinTournaments(tournamentsList) {
         card.className = 'team-card';
         card.style.flexDirection = 'column';
         card.style.alignItems = 'stretch';
-        card.style.gap = '10px';
+        card.style.gap = '8px';
         card.style.marginBottom = '10px';
 
-        const contactText = (t.admin_contact && t.admin_contact.trim()) ? ` (📞 ${t.admin_contact.trim()})` : '';
+        const { location, contact } = parseTournamentAdminInfo(t.admin_contact);
+        const locationText = location ? ` | 📍 ${location}` : '';
+        const contactText = contact ? ` | 📞 ${contact}` : '';
 
         card.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <strong style="font-size:15px; color:var(--text-main);">${t.name}</strong>
-                <span class="badge ${t.format === 'single' ? 'badge-single' : 'badge-double'}">${t.format.toUpperCase()} (${t.max_teams} Hold)</span>
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                <strong style="font-size:15px; color:var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${t.name}</strong>
+                <span class="badge ${t.format === 'single' ? 'badge-single' : 'badge-double'}" style="flex-shrink:0;">${t.format.toUpperCase()} (${t.max_teams} Hold)</span>
             </div>
-            <div style="font-size:12px; color:var(--text-muted);">
-                👤 Admin: ${t.admin_username}${contactText}<br>
-                📊 Pladser: ${t.filledPlayers} / ${t.totalCapacity} spillere
+            <div style="font-size:12px; color:var(--text-muted); line-height:1.4;">
+                <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">👤 Admin: ${t.admin_username}${locationText}${contactText}</div>
+                <div>📊 Pladser: ${t.filledPlayers} / ${t.totalCapacity} spillere</div>
             </div>
             <button class="btn-primary btn-sm" onclick="closeModal('join-tournament-modal'); openTournament('${t.id}')">Se / Deltag →</button>
         `;
