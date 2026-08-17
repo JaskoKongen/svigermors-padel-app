@@ -517,7 +517,14 @@ function renderMyTournaments() {
     const listDiv = document.getElementById('my-tournaments-list');
     if (!listDiv) return;
 
-    if (cachedMyTournaments.length === 0) {
+    // Filtrér så kun turneringer hvor brugeren enten er Admin eller Deltager vises under "Mine Turneringer"
+    const myTournamentsOnly = cachedMyTournaments.filter(t => {
+        const isAdmin = t.admin_username.toLowerCase() === (currentUser || '').toLowerCase();
+        const isParticipant = cachedMyTournamentIds.includes(t.id);
+        return isAdmin || isParticipant;
+    });
+
+    if (myTournamentsOnly.length === 0) {
         listDiv.innerHTML = `
             <div class="card" style="text-align: center; padding: 30px 20px;">
                 <p style="font-size: 18px; margin-bottom: 8px;">Ingen turneringer endnu 🎾</p>
@@ -530,8 +537,8 @@ function renderMyTournaments() {
         return;
     }
 
-    const activeTournaments = cachedMyTournaments.filter(t => t.status !== 'finished');
-    const finishedTournaments = cachedMyTournaments.filter(t => t.status === 'finished');
+    const activeTournaments = myTournamentsOnly.filter(t => t.status !== 'finished');
+    const finishedTournaments = myTournamentsOnly.filter(t => t.status === 'finished');
 
     const renderCard = (t) => {
         const isAdmin = t.admin_username.toLowerCase() === currentUser.toLowerCase();
@@ -596,13 +603,18 @@ async function openTournament(tournamentId) {
     const { data: t } = await client.from('tournaments').select('*').eq('id', tournamentId).single();
     if (!t) return showCustomAlert("Kunne ikke hente turnering.", "Fejl", "⚠️");
 
+    const isAdmin = t.admin_username.toLowerCase() === (currentUser || '').toLowerCase();
+    const isParticipant = cachedMyTournamentIds.includes(t.id);
+
+    if (!isAdmin && !isParticipant && t.status !== 'registration') {
+        return showCustomAlert("Du har ikke adgang til denne turnering, da du ikke er tilmeldt som spiller.", "Ingen adgang 🔒", "🔒");
+    }
+
     currentTournament = t;
     if (t.status === 'matches' || t.status === 'registration') {
         localStorage.setItem('last_active_tournament_id', tournamentId);
     }
     showView('tournament-view');
-
-    const isAdmin = t.admin_username === currentUser;
 
     document.getElementById('t-detail-name').innerText = t.name;
     document.getElementById('t-detail-format-badge').innerText = t.format.toUpperCase();
