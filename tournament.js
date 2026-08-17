@@ -14,10 +14,11 @@ async function startTournament(overrideTeamsCount) {
     const targetTeams = overrideTeamsCount || count;
 
     if (count < 2) {
-        return alert("Der skal være mindst 2 hold tilmeldt for at starte turneringen.");
+        return showCustomAlert("Der skal være mindst 2 hold tilmeldt for at starte turneringen.", "For få hold", "⚠️");
     }
 
-    if (!confirm(`Vil du starte turneringen nu med de ${targetTeams} tilmeldte hold?`)) return;
+    const confirmed = await showCustomConfirm(`Vil du starte turneringen nu med de ${targetTeams} tilmeldte hold?`, "Start Turnering 🚀", "🎾");
+    if (!confirmed) return;
 
     let effectiveMaxTeams = currentTournament.max_teams;
 
@@ -292,7 +293,7 @@ async function saveScore() {
     const sA = parseInt(document.getElementById('score-a').value) || 0;
     const sB = parseInt(document.getElementById('score-b').value) || 0;
 
-    if (sA === sB) return alert("Der skal findes en vinder! Ingen uafgjorte resultat tilladt.");
+    if (sA === sB) return showCustomAlert("Der skal findes en vinder! Uafgjorte resultater er ikke tilladt i knald-eller-fald kampe.", "Vinder påkrævet", "🎾");
 
     const { data: m } = await client.from('matches').select('*').eq('id', activeMatchId).single();
     const wId = sA > sB ? m.team_a_id : m.team_b_id;
@@ -380,9 +381,10 @@ async function advanceTeams(tId, matchNum, winnerId, loserId) {
 async function restartTournament() {
     if (!currentTournament) return;
     const isAdmin = currentTournament.admin_username && currentTournament.admin_username.toLowerCase() === (currentUser || '').toLowerCase();
-    if (!isAdmin) return alert("Kun Admin kan genoprette turneringen.");
+    if (!isAdmin) return showCustomAlert("Kun Admin kan genoprette turneringen.", "Adgang nægtet", "🔒");
 
-    if (!confirm(`Vil du genoprette turneringen "${currentTournament.name}"?\n\nDette opretter en ny udgave i tilmeldingsfasen med alle eksisterende hold kopieret over, så spillere kan framelde sig eller nye kan deltage.`)) return;
+    const confirmed = await showCustomConfirm(`Vil du genoprette turneringen "${currentTournament.name}"?\n\nDette opretter en ny udgave i tilmeldingsfasen med alle eksisterende hold kopieret over, så spillere kan framelde sig eller nye kan deltage.`, "Genopret turnering 🔄", "🎾");
+    if (!confirmed) return;
 
     // 1. Find det rene grundnavn uden gamle numre eller (Ny)
     let baseName = currentTournament.name.replace(/\s*[\(\#](Ny|v?\d+)[\)]?/gi, '').trim();
@@ -414,7 +416,7 @@ async function restartTournament() {
         status: 'registration'
     }).select().single();
 
-    if (error) return alert("Fejl ved oprettelse: " + error.message);
+    if (error) return showCustomAlert("Fejl ved oprettelse: " + error.message, "Fejl", "❌");
 
     // 4. Kopier spillere over i de nye hold
     const newTeamsToInsert = [];
@@ -430,6 +432,6 @@ async function restartTournament() {
 
     await client.from('teams').insert(newTeamsToInsert);
 
-    alert(`Turneringen er genoprettet som "${newName}" i tilmeldingsfasen med alle spillere kopieret over!`);
+    await showCustomAlert(`Turneringen er genoprettet som "${newName}" i tilmeldingsfasen med alle spillere kopieret over!`, "Turnering Genoprettet 🎉", "🚀");
     openTournament(newT.id);
 }

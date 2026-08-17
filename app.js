@@ -229,6 +229,80 @@ function closeModal(modalId) {
     if (modal) modal.style.display = 'none';
 }
 
+// CUSTOM DESIGN DIALOG SYSTEM (Erstatter grimme native browser alerts/confirms med Netlify URL)
+function showCustomAlert(message, title = "🎾 Svigermors Padel-Cup", icon = "🎾") {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('custom-dialog-modal');
+        const titleEl = document.getElementById('custom-dialog-title');
+        const messageEl = document.getElementById('custom-dialog-message');
+        const iconEl = document.getElementById('custom-dialog-icon');
+        const actionsEl = document.getElementById('custom-dialog-actions');
+
+        if (!modal) {
+            window.alert(message);
+            resolve();
+            return;
+        }
+
+        iconEl.innerText = icon;
+        titleEl.innerText = title;
+        messageEl.innerText = message;
+
+        actionsEl.innerHTML = `
+            <button class="btn-primary" style="flex:1; padding:12px; font-size:14px;" id="custom-alert-ok-btn">OK</button>
+        `;
+
+        modal.style.display = 'flex';
+
+        document.getElementById('custom-alert-ok-btn').onclick = () => {
+            modal.style.display = 'none';
+            resolve();
+        };
+    });
+}
+
+function showCustomConfirm(message, title = "🎾 Bekræft handling", icon = "❓") {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('custom-dialog-modal');
+        const titleEl = document.getElementById('custom-dialog-title');
+        const messageEl = document.getElementById('custom-dialog-message');
+        const iconEl = document.getElementById('custom-dialog-icon');
+        const actionsEl = document.getElementById('custom-dialog-actions');
+
+        if (!modal) {
+            const res = window.confirm(message);
+            resolve(res);
+            return;
+        }
+
+        iconEl.innerText = icon;
+        titleEl.innerText = title;
+        messageEl.innerText = message;
+
+        actionsEl.innerHTML = `
+            <button class="btn-secondary btn-sm" style="flex:1; padding:12px; font-size:13px;" id="custom-confirm-cancel-btn">Afbryd</button>
+            <button class="btn-primary btn-sm" style="flex:1; padding:12px; font-size:13px;" id="custom-confirm-ok-btn">Ja, fortsæt</button>
+        `;
+
+        modal.style.display = 'flex';
+
+        document.getElementById('custom-confirm-cancel-btn').onclick = () => {
+            modal.style.display = 'none';
+            resolve(false);
+        };
+
+        document.getElementById('custom-confirm-ok-btn').onclick = () => {
+            modal.style.display = 'none';
+            resolve(true);
+        };
+    });
+}
+
+// Global fallback override for eventuelle uventede browser alerts
+window.alert = function(msg) {
+    showCustomAlert(msg);
+};
+
 // App Initialization
 function init() {
     initTheme();
@@ -310,8 +384,9 @@ function completeLogin(name) {
     init();
 }
 
-function logout() {
-    if (!confirm("Vil du skifte brugernavn eller logge ud?")) return;
+async function logout() {
+    const confirmed = await showCustomConfirm("Vil du skifte brugernavn eller logge ud?", "Skift bruger / Log ud", "👤");
+    if (!confirmed) return;
     localStorage.removeItem('padel_name');
     currentUser = null;
     currentTournamentId = null;
@@ -461,7 +536,7 @@ async function fetchMyTournaments() {
 async function openTournament(tournamentId) {
     currentTournamentId = tournamentId;
     const { data: t } = await client.from('tournaments').select('*').eq('id', tournamentId).single();
-    if (!t) return alert("Kunne ikke hente turnering.");
+    if (!t) return showCustomAlert("Kunne ikke hente turnering.", "Fejl", "⚠️");
 
     currentTournament = t;
     showView('tournament-view');
@@ -497,15 +572,16 @@ async function openTournament(tournamentId) {
 }
 
 async function deleteTournament(tournamentId) {
-    if (!confirm("ADVARSEL: Er du helt sikker på, at du vil slette denne turnering? Alle tilmeldinger, kampe og stillinger vil blive permanent slettet!")) return;
+    const confirmed = await showCustomConfirm("ADVARSEL: Er du helt sikker på, at du vil slette denne turnering? Alle tilmeldinger, kampe og stillinger vil blive permanent slettet!", "Slet turnering 🗑️", "⚠️");
+    if (!confirmed) return;
 
     const { error } = await client.from('tournaments').delete().eq('id', tournamentId);
     if (error) {
-        alert("Kunne ikke slette turnering: " + error.message);
+        showCustomAlert("Kunne ikke slette turnering: " + error.message, "Fejl", "❌");
         return;
     }
 
-    alert("Turneringen er nu slettet.");
+    await showCustomAlert("Turneringen er nu slettet.", "Slettet 🗑️", "✅");
     goToMyTournaments();
 }
 
@@ -530,8 +606,8 @@ function setupTournamentRealtime(tId) {
                 fetchMatches();
             }
         })
-        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tournaments', filter: `id=eq.${tId}` }, () => {
-            alert("Turneringen er blevet slettet af admin.");
+        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tournaments', filter: `id=eq.${tId}` }, async () => {
+            await showCustomAlert("Turneringen er blevet slettet af admin.", "Turnering Slettet", "ℹ️");
             goToMyTournaments();
         })
         .subscribe();
@@ -551,7 +627,7 @@ async function submitCreateTournament() {
     const maxTeams = parseInt(document.getElementById('create-t-max-teams').value);
 
     if (!name || !contact) {
-        return alert("Udfyld venligst både turneringsnavn og kontakt-info.");
+        return showCustomAlert("Udfyld venligst både turneringsnavn og kontakt-oplysninger.", "Manglende oplysninger", "⚠️");
     }
 
     const { data: newT, error } = await client.from('tournaments').insert({
@@ -564,7 +640,7 @@ async function submitCreateTournament() {
     }).select().single();
 
     if (error) {
-        alert("Fejl ved oprettelse af turnering: " + error.message);
+        showCustomAlert("Fejl ved oprettelse af turnering: " + error.message, "Fejl", "❌");
         return;
     }
 
