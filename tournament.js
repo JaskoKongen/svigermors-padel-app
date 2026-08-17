@@ -343,10 +343,17 @@ function openScoreModal(match) {
 }
 
 async function saveScore() {
-    const sA = parseInt(document.getElementById('score-a').value) || 0;
-    const sB = parseInt(document.getElementById('score-b').value) || 0;
+    const rawA = document.getElementById('score-a').value;
+    const rawB = document.getElementById('score-b').value;
 
-    if (sA === sB) return showCustomAlert("Der skal findes en vinder! Uafgjorte resultater er ikke tilladt i knald-eller-fald kampe.", "Vinder påkrævet", "🎾");
+    const sA = parseInt(rawA);
+    const sB = parseInt(rawB);
+
+    if (isNaN(sA) || isNaN(sB) || sA < 0 || sB < 0) {
+        return showCustomAlert("Ugyldigt resultat! Resultater kan ikke være negative eller tomme.", "Ugyldig score ⚠️", "⚠️");
+    }
+
+    if (sA === sB) return showCustomAlert("Der skal findes en vinder! Uafgjorte resultater er ikke tilladt i knald-eller-fald kampe.", "Vinder påkrævet 🎾", "🎾");
 
     const { data: m } = await client.from('matches').select('*').eq('id', activeMatchId).single();
     const wId = sA > sB ? m.team_a_id : m.team_b_id;
