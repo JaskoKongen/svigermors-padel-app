@@ -304,7 +304,7 @@ window.alert = function(msg) {
 };
 
 // App Initialization
-function init() {
+async function init() {
     initTheme();
     checkInAppBrowser();
     checkPwaBanner();
@@ -316,6 +316,18 @@ function init() {
     } else {
         document.getElementById('user-display-name').innerText = currentUser;
         document.getElementById('header-user-badge').style.display = 'flex';
+        
+        const lastTournamentId = localStorage.getItem('last_active_tournament_id');
+        if (lastTournamentId) {
+            const { data: t } = await client.from('tournaments').select('*').eq('id', lastTournamentId).single();
+            if (t && (t.status === 'matches' || t.status === 'registration')) {
+                openTournament(t.id);
+                return;
+            } else {
+                localStorage.removeItem('last_active_tournament_id');
+            }
+        }
+
         goToMyTournaments();
     }
 }
@@ -388,6 +400,7 @@ async function logout() {
     const confirmed = await showCustomConfirm("Vil du skifte brugernavn eller logge ud?", "Skift bruger / Log ud", "👤");
     if (!confirmed) return;
     localStorage.removeItem('padel_name');
+    localStorage.removeItem('last_active_tournament_id');
     currentUser = null;
     currentTournamentId = null;
     init();
@@ -456,6 +469,7 @@ function switchTab(tab) {
 async function goToMyTournaments() {
     currentTournamentId = null;
     currentTournament = null;
+    localStorage.removeItem('last_active_tournament_id');
     if (realtimeChannel) {
         client.removeChannel(realtimeChannel);
         realtimeChannel = null;
@@ -583,6 +597,9 @@ async function openTournament(tournamentId) {
     if (!t) return showCustomAlert("Kunne ikke hente turnering.", "Fejl", "⚠️");
 
     currentTournament = t;
+    if (t.status === 'matches' || t.status === 'registration') {
+        localStorage.setItem('last_active_tournament_id', tournamentId);
+    }
     showView('tournament-view');
 
     const isAdmin = t.admin_username === currentUser;
