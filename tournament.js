@@ -35,31 +35,52 @@ async function startTournament(overrideTeamsCount) {
         currentTournament.max_teams = effectiveMaxTeams;
     }
 
-    const shuffledTeams = [...teams].sort(() => Math.random() - 0.5);
-
-    // Slet eventuelle tidligere kampe for denne turnering
-    await client.from('matches').delete().eq('tournament_id', currentTournamentId);
+    const sortedTeams = [...teams].sort((a, b) => a.team_number - b.team_number);
 
     const matchesToCreate = [];
 
     if (effectiveMaxTeams === 4) {
-        // 4 Hold: 2 runder (4 kampe totalt)
-        matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 1, round: 1, match_type: "🚀 Semifinale 1", team_a_id: shuffledTeams[0]?.id || null, team_b_id: shuffledTeams[1]?.id || null, status: 'ready' });
-        matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 2, round: 1, match_type: "🚀 Semifinale 2", team_a_id: shuffledTeams[2]?.id || null, team_b_id: shuffledTeams[3]?.id || null, status: 'ready' });
+        // Seed 1 vs Seed 4, Seed 2 vs Seed 3
+        matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 1, round: 1, match_type: "🚀 Semifinale 1", team_a_id: sortedTeams[0]?.id || null, team_b_id: sortedTeams[3]?.id || null, status: 'ready' });
+        matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 2, round: 1, match_type: "🚀 Semifinale 2", team_a_id: sortedTeams[1]?.id || null, team_b_id: sortedTeams[2]?.id || null, status: 'ready' });
 
         matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 3, round: 2, match_type: "🏆 FINALE", team_a_id: null, team_b_id: null, status: 'waiting' });
         matchesToCreate.push({ tournament_id: currentTournamentId, match_number: 4, round: 2, match_type: "🥉 3./4. PLADS", team_a_id: null, team_b_id: null, status: 'waiting' });
     } else {
-        // 8, 16 eller 32 Hold: Opret Runde 1 kampe dynamisk
-        const r1MatchesCount = effectiveMaxTeams / 2;
-        for (let i = 0; i < r1MatchesCount; i++) {
+        // Seedet parring i Runde 1 (Seed 1 vs Seed Max, Seed 2 vs Seed (Max-1) osv.)
+        let r1Pairs = [];
+        if (effectiveMaxTeams === 8) {
+            r1Pairs = [
+                [sortedTeams[0], sortedTeams[7]], // Seed 1 vs 8
+                [sortedTeams[3], sortedTeams[4]], // Seed 4 vs 5
+                [sortedTeams[2], sortedTeams[5]], // Seed 3 vs 6
+                [sortedTeams[1], sortedTeams[6]]  // Seed 2 vs 7
+            ];
+        } else if (effectiveMaxTeams === 16) {
+            r1Pairs = [
+                [sortedTeams[0], sortedTeams[15]], // Seed 1 vs 16
+                [sortedTeams[7], sortedTeams[8]],  // Seed 8 vs 9
+                [sortedTeams[4], sortedTeams[11]], // Seed 5 vs 12
+                [sortedTeams[3], sortedTeams[12]], // Seed 4 vs 13
+                [sortedTeams[2], sortedTeams[13]], // Seed 3 vs 14
+                [sortedTeams[5], sortedTeams[10]], // Seed 6 vs 11
+                [sortedTeams[6], sortedTeams[9]],  // Seed 7 vs 10
+                [sortedTeams[1], sortedTeams[14]]  // Seed 2 vs 15
+            ];
+        } else {
+            for (let i = 0; i < effectiveMaxTeams / 2; i++) {
+                r1Pairs.push([sortedTeams[i * 2], sortedTeams[i * 2 + 1]]);
+            }
+        }
+
+        for (let i = 0; i < r1Pairs.length; i++) {
             matchesToCreate.push({
                 tournament_id: currentTournamentId,
                 match_number: i + 1,
                 round: 1,
                 match_type: `🎾 Indledende Kamp ${i + 1}`,
-                team_a_id: shuffledTeams[i * 2]?.id || null,
-                team_b_id: shuffledTeams[i * 2 + 1]?.id || null,
+                team_a_id: r1Pairs[i][0]?.id || null,
+                team_b_id: r1Pairs[i][1]?.id || null,
                 status: 'ready'
             });
         }
@@ -147,7 +168,7 @@ async function fetchMatches() {
                 <div class="card" style="text-align:center; background: linear-gradient(135deg, rgba(16,185,129,0.15) 0%, rgba(59,130,246,0.15) 100%); border: 1px solid rgba(16,185,129,0.3);">
                     <h3 style="color:var(--text-main); margin-top:0; font-size:17px;">🏁 Turneringen er færdigspillet!</h3>
                     <p style="color:var(--text-muted); font-size:13px; margin-bottom:14px;">Alle kampe er afviklet. Se vinderen i stillingstabellen!</p>
-                    ${isAdmin ? `<button class="btn-primary" onclick="restartTournament()" style="padding:14px; font-size:14px;">🔄 Genopret turnering med samme hold & indstillinger</button>` : ''}
+                    ${isAdmin ? `<button class="btn-primary" onclick="restartTournament()" style="padding:14px; font-size:14px; width:100%;">🔄 Start Næste Turnering (Seedet efter forrige stilling 🏆)</button>` : ''}
                 </div>`;
         } else {
             adminFinishedDiv.innerHTML = '';
@@ -511,9 +532,6 @@ async function restartTournament() {
     const isAdmin = currentTournament.admin_username && currentTournament.admin_username.toLowerCase() === (currentUser || '').toLowerCase();
     if (!isAdmin) return showCustomAlert("Kun Admin kan genoprette turneringen.", "Adgang nægtet", "🔒");
 
-    const confirmed = await showCustomConfirm(`Vil du genoprette turneringen "${currentTournament.name}"?\n\nDette opretter en ny udgave i tilmeldingsfasen med alle eksisterende hold kopieret over, så spillere kan framelde sig eller nye kan deltage.`, "Genopret turnering 🔄", "🎾");
-    if (!confirmed) return;
-
     // 1. Find det rene grundnavn uden gamle numre eller (Ny)
     let baseName = currentTournament.name.replace(/\s*[\(\#](Ny|v?\d+)[\)]?/gi, '').trim();
 
@@ -527,14 +545,55 @@ async function restartTournament() {
 
     const newName = `${baseName} #${nextNum}`;
 
-    // 2. Hent alle eksisterende hold i den færdige turnering
-    const { data: oldTeams } = await client
-        .from('teams')
-        .select('*')
-        .eq('tournament_id', currentTournamentId)
-        .order('team_number', { ascending: true });
+    const confirmed = await showCustomConfirm(
+        `Vil du oprette næste turnering "${newName}" med de samme hold?\n\nHoldene vil automatisk blive SEEDET (1. plads mod 8. plads, 2. plads mod 7. plads osv.) baseret på deres placering i denne turnering! 🏆`,
+        "Start Næste Turnering (Seedet) 🏆",
+        "🎾"
+    );
+    if (!confirmed) return;
 
-    // 3. Opret ny turnering i tilmeldingsfasen (status = 'registration')
+    // 2. Hent gamle kampe og hold for at beregne placeringsrang til seeding
+    const { data: prevMatches } = await client.from('matches').select('*').eq('tournament_id', currentTournamentId);
+    const { data: oldTeams } = await client.from('teams').select('*').eq('tournament_id', currentTournamentId);
+
+    let stats = {};
+    if (oldTeams) {
+        oldTeams.forEach(t => {
+            stats[t.id] = { id: t.id, team_number: t.team_number, player1: t.player1, player2: t.player2, gamesWon: 0, finalRank: 99 };
+        });
+    }
+
+    if (prevMatches) {
+        prevMatches.forEach(m => {
+            if (m.team_a_id && m.team_b_id && m.status === 'finished') {
+                if (stats[m.team_a_id]) stats[m.team_a_id].gamesWon += Number(m.score_a);
+                if (stats[m.team_b_id]) stats[m.team_b_id].gamesWon += Number(m.score_b);
+            }
+        });
+
+        const maxT = currentTournament.max_teams;
+        let finalRanks = {};
+        if (maxT === 4) finalRanks = { 3: [1, 2], 4: [3, 4] };
+        else if (maxT === 8) finalRanks = { 9: [1, 2], 10: [3, 4], 11: [5, 6], 12: [7, 8] };
+        else if (maxT === 16) finalRanks = { 25: [1, 2], 26: [3, 4], 27: [5, 6], 28: [7, 8], 29: [9, 10], 30: [11, 12], 31: [13, 14], 32: [15, 16] };
+
+        Object.entries(finalRanks).forEach(([mNum, ranks]) => {
+            const m = prevMatches.find(x => x.match_number == mNum);
+            if (m && m.status === 'finished' && m.winner_team_id && m.team_a_id && m.team_b_id) {
+                const loserId = m.winner_team_id === m.team_a_id ? m.team_b_id : m.team_a_id;
+                if (stats[m.winner_team_id]) stats[m.winner_team_id].finalRank = ranks[0];
+                if (stats[loserId]) stats[loserId].finalRank = ranks[1];
+            }
+        });
+    }
+
+    // Sorter hold efter deres placeringsrang (Seed 1, Seed 2, Seed 3...)
+    const orderedTeams = Object.values(stats).sort((a, b) => {
+        if (a.finalRank !== b.finalRank) return a.finalRank - b.finalRank;
+        return b.gamesWon - a.gamesWon;
+    });
+
+    // 3. Opret ny turnering i tilmeldingsfasen
     const { data: newT, error } = await client.from('tournaments').insert({
         name: newName,
         admin_username: currentUser,
@@ -546,20 +605,20 @@ async function restartTournament() {
 
     if (error) return showCustomAlert("Fejl ved oprettelse: " + error.message, "Fejl", "❌");
 
-    // 4. Kopier spillere over i de nye hold
+    // 4. Gem de seedede hold i den nye turnering (Hold #1 = Seed 1 (Vinder), Hold #2 = Seed 2, etc.)
     const newTeamsToInsert = [];
     for (let i = 1; i <= newT.max_teams; i++) {
-        const oldTeam = oldTeams ? oldTeams.find(t => t.team_number === i) : null;
+        const seededTeam = orderedTeams[i - 1];
         newTeamsToInsert.push({
             tournament_id: newT.id,
             team_number: i,
-            player1: oldTeam ? oldTeam.player1 : null,
-            player2: oldTeam ? oldTeam.player2 : null
+            player1: seededTeam ? seededTeam.player1 : null,
+            player2: seededTeam ? seededTeam.player2 : null
         });
     }
 
     await client.from('teams').insert(newTeamsToInsert);
 
-    await showCustomAlert(`Turneringen er genoprettet som "${newName}" i tilmeldingsfasen med alle spillere kopieret over!`, "Turnering Genoprettet 🎉", "🚀");
+    await showCustomAlert(`Turneringen "${newName}" er oprettet! Holdene er automatisk seedet baseret på forrige placeringsstigning (Hold 1 = 1. plads, Hold 2 = 2. plads osv.).`, "Turnering Seedet & Oprettet 🏆", "🚀");
     openTournament(newT.id);
 }
