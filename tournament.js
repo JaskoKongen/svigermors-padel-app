@@ -562,10 +562,9 @@ async function restartTournament() {
     const isAdmin = currentTournament.admin_username && currentTournament.admin_username.toLowerCase() === (currentUser || '').toLowerCase();
     if (!isAdmin) return showCustomAlert("Kun Admin kan genoprette turneringen.", "Adgang nægtet", "🔒");
 
-    // 1. Find det rene grundnavn uden gamle numre eller (Ny)
+    // 1. Find grundnavn og næste ledige udgavenummer (#2, #3, #4...)
     let baseName = currentTournament.name.replace(/\s*[\(\#](Ny|v?\d+)[\)]?/gi, '').trim();
 
-    // Find det næste ledige udgavenummer (#2, #3, #4...)
     const { data: existing } = await client.from('tournaments').select('name');
     let nextNum = 2;
     if (existing) {
@@ -575,14 +574,41 @@ async function restartTournament() {
         }
     }
 
-    const newName = `${baseName} #${nextNum}`;
+    const suggestedName = `${baseName} #${nextNum}`;
+    const { location } = (typeof parseTournamentAdminInfo === 'function') 
+        ? parseTournamentAdminInfo(currentTournament.admin_contact) 
+        : { location: '' };
 
-    const confirmed = await showCustomConfirm(
-        `Vil du oprette næste turnering "${newName}" med de samme hold?\n\nHoldene vil automatisk blive SEEDET (1. plads mod 8. plads, 2. plads mod 7. plads osv.) baseret på deres placering i denne turnering! 🏆`,
-        "Start Næste Turnering (Seedet) 🏆",
-        "🎾"
-    );
-    if (!confirmed) return;
+    document.getElementById('restart-t-name').value = suggestedName;
+    const locInput = document.getElementById('restart-t-location');
+    if (locInput) locInput.value = location || '';
+
+    document.getElementById('restart-tournament-modal').style.display = 'flex';
+}
+
+async function submitRestartTournament() {
+    if (!currentTournament) return;
+    const chosenName = document.getElementById('restart-t-name').value.trim();
+    const chosenLocation = (document.getElementById('restart-t-location')?.value || '').trim();
+    const { contact } = (typeof parseTournamentAdminInfo === 'function') 
+        ? parseTournamentAdminInfo(currentTournament.admin_contact) 
+        : { contact: '' };
+
+    if (!chosenName) {
+        return showCustomAlert("Indtast venligst et navn til den nye turnering.", "Manglende navn ⚠️", "⚠️");
+    }
+
+    // Tjek om navnet allerede er optaget i databasen
+    const { data: existing } = await client
+        .from('tournaments')
+        .select('id, name')
+        .ilike('name', chosenName);
+
+    if (existing && existing.length > 0) {
+        return showCustomAlert(`Der findes allerede en turnering med navnet "${chosenName}". Vælg venligst et andet unikt navn!`, "Optaget Navn ⚠️", "⚠️");
+    }
+
+    closeModal('restart-tournament-modal');
 
     // 2. Hent gamle kampe og hold for at beregne placeringsrang til seeding
     const { data: prevMatches } = await client.from('matches').select('*').eq('tournament_id', currentTournamentId);
@@ -625,11 +651,16 @@ async function restartTournament() {
         return b.gamesWon - a.gamesWon;
     });
 
+    let adminContactPayload = '';
+    if (chosenLocation || contact) {
+        adminContactPayload = JSON.stringify({ location: chosenLocation, contact: contact || '' });
+    }
+
     // 3. Opret ny turnering i tilmeldingsfasen
     const { data: newT, error } = await client.from('tournaments').insert({
-        name: newName,
+        name: chosenName,
         admin_username: currentUser,
-        admin_contact: currentTournament.admin_contact || '',
+        admin_contact: adminContactPayload,
         format: currentTournament.format,
         max_teams: currentTournament.max_teams,
         status: 'registration'
@@ -651,6 +682,6 @@ async function restartTournament() {
 
     await client.from('teams').insert(newTeamsToInsert);
 
-    await showCustomAlert(`Turneringen "${newName}" er oprettet! Holdene er automatisk seedet baseret på forrige placeringsstigning (Hold 1 = 1. plads, Hold 2 = 2. plads osv.).`, "Turnering Seedet & Oprettet 🏆", "🚀");
+    await showCustomAlert(`Turneringen "${chosenName}" er oprettet! Holdene er automatisk seedet baseret på forrige placeringsstilling (Hold 1 = 1. plads, Hold 2 = 2. plads osv.).`, "Turnering Seedet & Oprettet 🏆", "🚀");
     openTournament(newT.id);
 }

@@ -527,6 +527,18 @@ function parseTournamentAdminInfo(adminContactStr) {
     return { contact: (adminContactStr || '').trim(), location: '' };
 }
 
+function formatTournamentTitleHtml(rawName) {
+    if (!rawName) return '';
+    // Look for trailing #tal (e.g. "Efterår 2026 Padel #2" or "Fredags-Padel #3")
+    const match = rawName.match(/^(.*?)(?:\s*#(\d+))$/);
+    if (match) {
+        const base = match[1].trim();
+        const num = match[2];
+        return `${base} <span class="badge badge-edition">#${num}</span>`;
+    }
+    return rawName;
+}
+
 function renderMyTournaments() {
     const listDiv = document.getElementById('my-tournaments-list');
     if (!listDiv) return;
@@ -571,7 +583,7 @@ function renderMyTournaments() {
             <div class="card card-interactive" onclick="openTournament('${t.id}')" style="margin-bottom:10px;">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
                     <div style="flex:1; min-width:0;">
-                        <h3 style="margin:0 0 6px 0; font-size:16px; color:var(--text-main); text-transform:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${t.name}</h3>
+                        <h3 style="margin:0 0 6px 0; font-size:16px; color:var(--text-main); text-transform:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${formatTournamentTitleHtml(t.name)}</h3>
                         <div style="display:flex; gap:4px; flex-wrap:wrap; align-items:center;">
                             <span class="badge ${formatBadgeClass}">${formatText}</span>
                             <span class="badge badge-status">${statusText}</span>
@@ -633,7 +645,7 @@ async function openTournament(tournamentId) {
     }
     showView('tournament-view');
 
-    document.getElementById('t-detail-name').innerText = t.name;
+    document.getElementById('t-detail-name').innerHTML = formatTournamentTitleHtml(t.name);
     document.getElementById('t-detail-format-badge').innerText = t.format.toUpperCase();
     document.getElementById('t-detail-format-badge').className = 'badge ' + (t.format === 'single' ? 'badge-single' : 'badge-double');
     
@@ -650,6 +662,10 @@ async function openTournament(tournamentId) {
         ? `<span style="display:inline-flex; align-items:center; gap:3px; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${contact}">📞 ${contact}</span>` 
         : '';
 
+    const renameBtn = (isAdmin && t.status === 'registration')
+        ? `<button class="btn-secondary btn-sm" style="padding:4px 8px; font-size:11px;" onclick="openRenameTournamentModal()">✏️ Rediger</button>`
+        : '';
+
     document.getElementById('t-detail-admin').innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
             <div style="display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; font-size:12px; color:var(--text-muted);">
@@ -657,7 +673,10 @@ async function openTournament(tournamentId) {
                 ${locationBadge}
                 ${contactBadge}
             </div>
-            ${isAdmin ? `<button class="btn-danger btn-sm" style="padding:4px 8px; font-size:11px;" onclick="deleteTournament('${t.id}')">🗑️ Slet Turnering</button>` : ''}
+            <div style="display:flex; gap:6px; align-items:center;">
+                ${renameBtn}
+                ${isAdmin ? `<button class="btn-danger btn-sm" style="padding:4px 8px; font-size:11px;" onclick="deleteTournament('${t.id}')">🗑️ Slet Turnering</button>` : ''}
+            </div>
         </div>
     `;
 
@@ -872,7 +891,7 @@ function renderFilteredJoinTournaments(tournamentsList) {
 
         card.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-                <strong style="font-size:15px; color:var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${t.name}</strong>
+                <strong style="font-size:15px; color:var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${formatTournamentTitleHtml(t.name)}</strong>
                 <span class="badge ${t.format === 'single' ? 'badge-single' : 'badge-double'}" style="flex-shrink:0;">${t.format.toUpperCase()} (${t.max_teams} Hold)</span>
             </div>
             <div style="font-size:12px; color:var(--text-muted); line-height:1.4;">
@@ -883,6 +902,61 @@ function renderFilteredJoinTournaments(tournamentsList) {
         `;
         listDiv.appendChild(card);
     });
+}
+
+function openRenameTournamentModal() {
+    if (!currentTournament) return;
+    const { location, contact } = parseTournamentAdminInfo(currentTournament.admin_contact);
+    document.getElementById('rename-t-name').value = currentTournament.name || '';
+    const locInput = document.getElementById('rename-t-location');
+    if (locInput) locInput.value = location || '';
+    const contactInput = document.getElementById('rename-t-contact');
+    if (contactInput) contactInput.value = contact || '';
+
+    document.getElementById('rename-tournament-modal').style.display = 'flex';
+}
+
+async function submitRenameTournament() {
+    if (!currentTournament) return;
+    const newName = document.getElementById('rename-t-name').value.trim();
+    const newLocation = (document.getElementById('rename-t-location')?.value || '').trim();
+    const newContact = (document.getElementById('rename-t-contact')?.value || '').trim();
+
+    if (!newName) {
+        return showCustomAlert("Udfyld venligst et turneringsnavn.", "Manglende oplysninger ⚠️", "⚠️");
+    }
+
+    if (newName.toLowerCase() !== currentTournament.name.toLowerCase()) {
+        const { data: existing } = await client
+            .from('tournaments')
+            .select('id, name')
+            .ilike('name', newName);
+
+        if (existing && existing.length > 0) {
+            return showCustomAlert(`Der findes allerede en turnering med navnet "${newName}". Vælg venligst et andet unikt navn!`, "Optaget Turneringsnavn ⚠️", "⚠️");
+        }
+    }
+
+    let adminContactPayload = '';
+    if (newLocation || newContact) {
+        adminContactPayload = JSON.stringify({ location: newLocation, contact: newContact });
+    }
+
+    const { error } = await client.from('tournaments').update({
+        name: newName,
+        admin_contact: adminContactPayload
+    }).eq('id', currentTournament.id);
+
+    if (error) {
+        return showCustomAlert("Fejl ved opdatering: " + error.message, "Fejl", "❌");
+    }
+
+    currentTournament.name = newName;
+    currentTournament.admin_contact = adminContactPayload;
+
+    closeModal('rename-tournament-modal');
+    await showCustomAlert("Turneringens oplysninger er opdateret! 💾", "Gemt", "✅");
+    openTournament(currentTournament.id);
 }
 
 // Initial start

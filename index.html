@@ -257,6 +257,44 @@
         </div>
     </div>
 
+    <!-- MODAL: OMDØB TURNERING (ADMIN I TILMELDINGSFASE) -->
+    <div id="rename-tournament-modal" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-top:0; font-size: 18px;">Rediger Turnering ✏️</h3>
+            
+            <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">TURNERINGSNAVN</label>
+            <input type="text" id="rename-t-name" placeholder="Fx Fredags-Padel, Svigermors Cup...">
+
+            <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">LOKATION / KLUB (VALGFRIT)</label>
+            <input type="text" id="rename-t-location" placeholder="Fx KIF Padel Club, Match Padel...">
+
+            <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">ADMIN KONTAKT-INFO (VALGFRIT)</label>
+            <input type="text" id="rename-t-contact" placeholder="Fx Tlf 12345678 eller Email (Valgfrit)...">
+
+            <button class="btn-primary" onclick="submitRenameTournament()" style="margin-top: 8px;">Gem Ændringer 💾</button>
+            <button class="btn-secondary" onclick="closeModal('rename-tournament-modal')" style="margin-top: 6px;">Annuller</button>
+        </div>
+    </div>
+
+    <!-- MODAL: START NÆSTE TURNERING (GENSTART MED SEEDING) -->
+    <div id="restart-tournament-modal" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-top:0; font-size: 18px;">Start Næste Turnering 🏆</h3>
+            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.4;">
+                Holdene overføres automatisk og seedes efter forrige slutplacering (1. plads mod 8. plads osv.).
+            </p>
+
+            <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">NAVN PÅ NÆSTE UDGAVE</label>
+            <input type="text" id="restart-t-name" placeholder="Fx Fredags-Padel #2, Vinter Cup...">
+
+            <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">LOKATION / KLUB (VALGFRIT)</label>
+            <input type="text" id="restart-t-location" placeholder="Fx KIF Padel Club, Match Padel...">
+
+            <button class="btn-primary" onclick="submitRestartTournament()" style="margin-top: 8px;">Opret & Seed Turnering 🚀</button>
+            <button class="btn-secondary" onclick="closeModal('restart-tournament-modal')" style="margin-top: 6px;">Annuller</button>
+        </div>
+    </div>
+
     <!-- MODAL: DELTAG I TURNERING -->
     <div id="join-tournament-modal" class="modal">
         <div class="modal-content" style="max-width: 480px;">
