@@ -630,18 +630,43 @@ function renderMyTournaments() {
 async function openTournament(tournamentId) {
     currentTournamentId = tournamentId;
     const { data: t } = await client.from('tournaments').select('*').eq('id', tournamentId).single();
-    if (!t) return showCustomAlert("Kunne ikke hente turnering.", "Fejl", "⚠️");
+    if (!t) {
+        localStorage.removeItem('last_active_tournament_id');
+        goToMyTournaments();
+        return showCustomAlert("Kunne ikke hente turnering.", "Fejl", "⚠️");
+    }
 
     const isAdmin = t.admin_username.toLowerCase() === (currentUser || '').toLowerCase();
-    const isParticipant = cachedMyTournamentIds.includes(t.id);
+    
+    // Pålideligt adgangstjek: Tjek direkte i databasen hvis cachedMyTournamentIds ikke er indlæst endnu
+    let isParticipant = cachedMyTournamentIds.includes(t.id);
+    if (!isParticipant && currentUser) {
+        const { data: myTeam } = await client
+            .from('teams')
+            .select('id')
+            .eq('tournament_id', tournamentId)
+            .or(`player1.ilike.${currentUser},player2.ilike.${currentUser}`)
+            .limit(1);
+        if (myTeam && myTeam.length > 0) {
+            isParticipant = true;
+            if (!cachedMyTournamentIds.includes(t.id)) {
+                cachedMyTournamentIds.push(t.id);
+            }
+        }
+    }
 
     if (!isAdmin && !isParticipant && t.status !== 'registration') {
+        localStorage.removeItem('last_active_tournament_id');
+        goToMyTournaments();
         return showCustomAlert("Du har ikke adgang til denne turnering, da du ikke er tilmeldt som spiller.", "Ingen adgang 🔒", "🔒");
     }
 
     currentTournament = t;
-    if (t.status === 'matches' || t.status === 'registration') {
+    // Gem kun som aktiv turnering hvis brugeren rent faktisk er tilmeldt eller er admin
+    if ((isAdmin || isParticipant) && (t.status === 'matches' || t.status === 'registration')) {
         localStorage.setItem('last_active_tournament_id', tournamentId);
+    } else {
+        localStorage.removeItem('last_active_tournament_id');
     }
     showView('tournament-view');
 

@@ -101,6 +101,12 @@ async function joinTeam(id) {
     }
 
     await client.from('teams').update(updateData).eq('id', id);
+    if (currentTournamentId && typeof cachedMyTournamentIds !== 'undefined' && !cachedMyTournamentIds.includes(currentTournamentId)) {
+        cachedMyTournamentIds.push(currentTournamentId);
+    }
+    if (currentTournamentId) {
+        localStorage.setItem('last_active_tournament_id', currentTournamentId);
+    }
     fetchTeams();
 }
 
@@ -115,5 +121,11 @@ async function leaveTeam(id) {
     }
 
     await client.from('teams').update(updateData).eq('id', id);
+    if (currentTournament && currentTournament.admin_username !== currentUser) {
+        if (typeof cachedMyTournamentIds !== 'undefined') {
+            cachedMyTournamentIds = cachedMyTournamentIds.filter(tId => tId !== currentTournamentId);
+        }
+        localStorage.removeItem('last_active_tournament_id');
+    }
     fetchTeams();
 }
